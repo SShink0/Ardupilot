@@ -52,18 +52,25 @@
 #define AP_PARAM_FLAG_POINTER       (1<<1)
 
 // an enable variable allows a whole subtree of variables to be made
-// invisible
-#define AP_PARAM_FLAG_ENABLE        (1<<2)
+// invisible. This is for a major subsystem
+#define AP_PARAM_FLAG_ENABLE_MAJOR  (1<<2)
+
+// an enable variable allows a whole subtree of variables to be made
+// invisible. This is for a minor subsystem
+#define AP_PARAM_FLAG_ENABLE_MINOR  (1<<3)
 
 // don't shift index 0 to index 63. Use this when you know there will be
 // no conflict with the parent
-#define AP_PARAM_NO_SHIFT           (1<<3)
+#define AP_PARAM_NO_SHIFT           (1<<4)
 
 // the var_info is a pointer, allowing for dynamic definition of the var_info tree
-#define AP_PARAM_FLAG_INFO_POINTER  (1<<4)
+#define AP_PARAM_FLAG_INFO_POINTER  (1<<5)
 
 // ignore the enable parameter on this group
-#define AP_PARAM_FLAG_IGNORE_ENABLE (1<<5)
+#define AP_PARAM_FLAG_IGNORE_ENABLE (1<<6)
+
+// mark a parameter as volatile (not included in _HASH_CHECK)
+#define AP_PARAM_FLAG_VOLATILE      (1<<7)
 
 // keep all flags before the FRAME tags
 
@@ -71,7 +78,7 @@
 // relevent to a vehicle type. Use AP_Param::set_frame_type_flags() to
 // enable parameters flagged in this way. frame type flags are stored
 // in flags field, shifted by AP_PARAM_FRAME_TYPE_SHIFT.
-#define AP_PARAM_FRAME_TYPE_SHIFT   6
+#define AP_PARAM_FRAME_TYPE_SHIFT   8
 
 // supported frame types for parameters
 #define AP_PARAM_FRAME_COPTER       (1<<0)
@@ -195,6 +202,7 @@ public:
         uint32_t key : 9;
         uint32_t idx : 5; // offset into array types
         uint32_t group_element : 18;
+        uint16_t flags; // AP_PARAM_FLAG_*
     } ParamToken;
 
     
@@ -407,7 +415,13 @@ public:
     // count of parameters in tree
     static uint16_t count_parameters(void);
 
-    static void set_hide_disabled_groups(bool value) { _hide_disabled_groups = value; }
+    enum param_hide {
+        PARAM_HIDE_NONE=0,
+        PARAM_HIDE_MAJOR=1,
+        PARAM_HIDE_MINOR=2,
+    };
+    
+    static void set_hide_disabled_groups(param_hide value) { _hide_disabled_groups = value; }
 
     // set frame type flags. Used to unhide frame specific parameters
     static void set_frame_type_flags(uint16_t flags_to_set) {
@@ -433,7 +447,7 @@ public:
                              enum ap_var_type ptype, 
                              AP_HAL::BetterStream *port);
 #endif // AP_PARAM_KEY_DUMP
-    
+
 private:
     /// EEPROM header
     ///
@@ -583,9 +597,15 @@ private:
      */
     static bool count_embedded_param_defaults(uint16_t &count);
     static void load_embedded_param_defaults(bool last_pass);
+
+    // check for AP_PARAM_FLAG_ENABLE_*
+    static bool check_disabled(uint16_t flags);
     
     // send a parameter to all GCS instances
     void send_parameter(const char *name, enum ap_var_type param_header_type, uint8_t idx) const;
+
+    // update magic param_hash variable
+    static void update_param_hash(void);
     
     static StorageAccess        _storage;
     static uint16_t             _num_vars;
@@ -607,7 +627,7 @@ private:
     static const uint8_t        k_EEPROM_magic1      = 0x41; ///< "AP"
     static const uint8_t        k_EEPROM_revision    = 6; ///< current format revision
 
-    static bool _hide_disabled_groups;
+    static param_hide _hide_disabled_groups;
 };
 
 /// Template class for scalar variables.
