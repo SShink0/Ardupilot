@@ -205,6 +205,12 @@ configuration in order to save typing.
         default=False,
         help='Force a static build')
 
+    g.add_option('--macro',
+        default=None,
+        action='append',
+        dest="macro_list",
+        help='define a macro: #define <string>')
+
 def _collect_autoconfig_files(cfg):
     for m in sys.modules.values():
         paths = []
@@ -248,6 +254,10 @@ def configure(cfg):
     cfg.env.BOOTLOADER = cfg.options.bootloader
 
     cfg.env.OPTIONS = cfg.options.__dict__
+
+    cfg.env.MACRO_LIST = []
+    if cfg.options.macro_list:
+        cfg.env.MACRO_LIST = cfg.options.macro_list
 
     # Allow to differentiate our build from the make build
     cfg.define('WAF_BUILD', 1)
@@ -332,6 +342,8 @@ def configure(cfg):
     cfg.env.prepend_value('DEFINES', [
         'SKETCHBOOK="' + cfg.srcnode.abspath() + '"',
     ])
+
+    cfg.msg('Macros defined', None if cfg.env.MACRO_LIST==[] else ', '.join(cfg.env.MACRO_LIST))
 
     # Always use system extensions
     cfg.define('_GNU_SOURCE', 1)
