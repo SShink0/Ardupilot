@@ -46,6 +46,7 @@ class AP_BattMonitor
     friend class AP_BattMonitor_Sum;
     friend class AP_BattMonitor_FuelFlow;
     friend class AP_BattMonitor_FuelLevel_PWM;
+    friend class AP_BattMonitor_DJI;
 
 public:
 
@@ -77,6 +78,7 @@ public:
         cells       cell_voltages;             // battery cell voltages in millivolts, 10 cells matches the MAVLink spec
         float       voltage;                   // voltage in volts
         float       current_amps;              // current in amperes
+        uint8_t     capacity_pct;              // Capacity % direct from battery (0% to 100%)
         float       consumed_mah;              // total current draw in milliamp hours since start-up
         float       consumed_wh;               // total energy consumed in Wh since start-up
         uint32_t    last_time_micros;          // time when voltage and current was last read in microseconds
