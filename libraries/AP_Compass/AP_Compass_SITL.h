@@ -11,7 +11,7 @@
 #include <AP_Declination/AP_Declination.h>
 #include <SITL/SITL.h>
 
-#define MAX_SITL_COMPASSES 3
+#define MAX_SITL_COMPASSES 2
 
 class AP_Compass_SITL : public AP_Compass_Backend {
 public:
