@@ -120,6 +120,9 @@ userdata Vector2f method rotate void float -FLT_MAX FLT_MAX
 userdata Vector2f operator +
 userdata Vector2f operator -
 
+userdata Vector2l field x int32_t read write -INT32_MAX INT32_MAX
+userdata Vector2l field y int32_t read write -INT32_MAX INT32_MAX
+
 include AP_Notify/AP_Notify.h
 singleton AP_Notify alias notify
 singleton AP_Notify method play_tune void string
@@ -278,3 +281,9 @@ singleton AP_RPM method get_rpm boolean uint8_t 0 RPM_MAX_INSTANCES float'Null
 include AP_Button/AP_Button.h
 singleton AP_Button alias button
 singleton AP_Button method get_button_state boolean uint8_t 1 AP_BUTTON_NUM_PINS
+
+include AC_Fence/AC_PolyFence_loader.h
+userdata AC_PolyFenceItem field type AC_PolyFenceType'enum read write AC_PolyFenceType::CIRCLE_INCLUSION AC_PolyFenceType::POLYGON_INCLUSION
+userdata AC_PolyFenceItem field loc Vector2l read write
+userdata AC_PolyFenceItem field vertex_count uint8_t read write 0 UINT8_MAX
+userdata AC_PolyFenceItem field radius float read write 0 FLT_MAX
