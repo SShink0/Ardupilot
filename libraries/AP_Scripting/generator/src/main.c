@@ -1258,8 +1258,10 @@ void emit_userdata_field(const struct userdata *data, const struct userdata_fiel
       case TYPE_INT32_T:
       case TYPE_UINT8_T:
       case TYPE_UINT16_T:
-      case TYPE_ENUM:
         fprintf(source, "            lua_pushinteger(L, ud->%s);\n", field->name);
+        break;
+      case TYPE_ENUM:
+        fprintf(source, "            lua_pushinteger(L, static_cast<int32_t>(ud->%s));\n", field->name);
         break;
       case TYPE_UINT32_T:
         fprintf(source, "            new_uint32_t(L);\n");
