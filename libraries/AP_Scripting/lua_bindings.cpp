@@ -275,9 +275,20 @@ static int AC_Fence_Load(lua_State *L) {
     return 0;
 }
 
+static int AC_Fence_broadcast(lua_State *L) {
+    AC_Fence * fence = AC_Fence::get_singleton();
+    if (fence == nullptr) {
+        return luaL_argerror(L, 1, "fence not supported on this firmware");
+    }
+    bool ret = fence->broadcast_fence();
+    lua_pushboolean(L, ret);
+    return 1;
+}
+
 
 const luaL_Reg AC_Fence_functions[] = {
     {"load", AC_Fence_Load},
+    {"send", AC_Fence_broadcast},
     {NULL, NULL}
 };
 
