@@ -952,6 +952,8 @@ public:
 
     uint8_t get_channel_from_port_number(uint8_t port_num);
 
+    uint8_t sysid_my_gcs() {return _chan[0]->sysid_my_gcs();}
+
 protected:
 
     virtual uint8_t sysid_this_mav() const = 0;

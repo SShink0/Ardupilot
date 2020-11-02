@@ -1258,8 +1258,10 @@ void emit_userdata_field(const struct userdata *data, const struct userdata_fiel
       case TYPE_INT32_T:
       case TYPE_UINT8_T:
       case TYPE_UINT16_T:
-      case TYPE_ENUM:
         fprintf(source, "            lua_pushinteger(L, ud->%s);\n", field->name);
+        break;
+      case TYPE_ENUM:
+        fprintf(source, "            lua_pushinteger(L, static_cast<int32_t>(ud->%s));\n", field->name);
         break;
       case TYPE_UINT32_T:
         fprintf(source, "            new_uint32_t(L);\n");
@@ -1275,10 +1277,11 @@ void emit_userdata_field(const struct userdata *data, const struct userdata_fiel
         fprintf(source, "            lua_pushstring(L, ud->%s);\n", field->name);
         break;
       case TYPE_USERDATA:
-        error(ERROR_USERDATA, "Userdata does not currently support accss to userdata field's");
+        fprintf(source, "            new_%s(L);\n", field->type.data.ud.sanatized_name);
+        fprintf(source, "            *check_%s(L, -1) = ud->%s;\n", field->type.data.ud.sanatized_name, field->name);
         break;
       case TYPE_AP_OBJECT: // FIXME: collapse the identical cases here, and use the type string function
-        error(ERROR_USERDATA, "AP_Object does not currently support accss to userdata field's");
+        error(ERROR_USERDATA, "AP_Object does not currently support acces to userdata field's");
         break;
     }
     fprintf(source, "            return 1;\n");
