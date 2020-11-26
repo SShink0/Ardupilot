@@ -127,6 +127,9 @@
  # define MAV_SYSTEM_ID          1
 #endif
 
+#ifndef  MAV_COMPONENT_ID
+ # define MAV_COMPONENT_ID       1
+#endif
 
 //////////////////////////////////////////////////////////////////////////////
 // Battery monitoring
