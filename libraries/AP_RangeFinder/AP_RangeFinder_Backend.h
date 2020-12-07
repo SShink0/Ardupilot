@@ -41,7 +41,7 @@ public:
     enum Rotation orientation() const { return (Rotation)params.orientation.get(); }
     float distance() const { return state.distance_m; }
     uint16_t distance_cm() const { return state.distance_m*100.0f; }
-    uint16_t voltage_mv() const { return state.voltage_mv; }
+    virtual uint16_t voltage_mv() const { return 0; }
     virtual int16_t max_distance_cm() const { return params.max_distance_cm; }
     virtual int16_t min_distance_cm() const { return params.min_distance_cm; }
     int16_t ground_clearance_cm() const { return params.ground_clearance_cm; }
