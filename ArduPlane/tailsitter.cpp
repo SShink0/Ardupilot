@@ -20,6 +20,7 @@
 
 #include <math.h>
 #include "Plane.h"
+#include <AP_Logger/DBGprint.h>
 
 /*
   return true when flying a tailsitter
@@ -32,9 +33,59 @@ bool QuadPlane::is_tailsitter(void) const
 }
 
 /*
-  return true when flying a control surface only tailsitter tailsitter
+  return true from time of arming until throttle has been up for a specified interval
  */
-bool QuadPlane::is_contol_surface_tailsitter(void) const
+bool QuadPlane::acro_mode_takeoff(void) const
+{
+    enum class Machine_State {
+        Relaxed,
+        Flying,
+        Disarmed
+    };
+    static Machine_State state;
+    bool result = false;
+    uint32_t now;
+    static uint32_t last_zero_throttle;
+    bool thr_timeout;
+
+    switch (state) {
+    case Machine_State::Disarmed:
+        result = false;
+        if (hal.util->get_soft_armed()) {
+            state = Machine_State::Relaxed;
+        }
+        break;
+    case Machine_State::Relaxed:
+        result = true;
+        now = AP_HAL::millis();
+        if (plane.quadplane.get_pilot_throttle() <= .01f) {
+            last_zero_throttle = now;
+        }
+        thr_timeout = (now - last_zero_throttle) > 5000;
+        if (thr_timeout) {
+            state = Machine_State::Flying;
+            result = false;
+        }
+        break;
+    case Machine_State::Flying:
+        result = false;
+        if (!hal.util->get_soft_armed()) {
+            state = Machine_State::Disarmed;
+        }
+        break;
+    }
+
+#if 1
+    DBG_WCONSOLE((int)state, 0, "state: %d\n", (int)state);
+#endif
+
+    return result;
+}
+
+/*
+  return true when flying a control surface only tailsitter
+ */
+bool QuadPlane::is_control_surface_tailsitter(void) const
 {
     return frame_class == AP_Motors::MOTOR_FRAME_TAILSITTER
            && ( is_zero(tailsitter.vectored_hover_gain) || !SRV_Channels::function_assigned(SRV_Channel::k_tiltMotorLeft));
@@ -242,6 +293,14 @@ bool QuadPlane::tailsitter_transition_vtol_complete(void) const
     if (plane.fly_inverted()) {
         // transition immediately
         return true;
+    }
+    // for vectored tailsitters at zero pilot throttle
+    if ((plane.quadplane.get_pilot_throttle() < .05f) && plane.quadplane._is_vectored) {
+        // if we are not moving (hence on the ground?) or don't know
+        // transition immediately to tilt motors up and prevent prop strikes
+        if (ahrs.groundspeed() < 1.0f) {
+            return true;
+        }
     }
     if (labs(plane.ahrs.pitch_sensor) > tailsitter.transition_angle*100 ||
         labs(plane.ahrs.roll_sensor) > tailsitter.transition_angle*100 ||
