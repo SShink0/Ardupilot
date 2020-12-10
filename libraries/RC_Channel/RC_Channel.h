@@ -618,6 +618,12 @@ private:
 
     // true if GCS is performing a RC calibration
     bool gcs_is_calibrating;
+
+    // time that rudder arming has been running
+    uint32_t rudder_arm_timer;
+    // check for arm/disarm command based on rudder stick position:
+    void rudder_arm_disarm_check();
+
 };
 
 RC_Channels &rc();
