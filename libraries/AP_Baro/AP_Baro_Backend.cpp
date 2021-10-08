@@ -2,13 +2,13 @@
 #include <stdio.h>
 
 extern const AP_HAL::HAL& hal;
-static constexpr float FILTER_KOEF = 0.1f;
+static constexpr float FILTER_KOEF = 0.1f; 
 
 // constructor
 AP_Baro_Backend::AP_Baro_Backend(AP_Baro &baro) : 
     _frontend(baro) 
 {
-    _glitch_filter.init(FILTER_KOEF);
+    _glitch_filter.init(FILTER_KOEF, 1000.0f, 1.0f);
 }
 
 void AP_Baro_Backend::update_healthy_flag(uint8_t instance)
@@ -79,5 +79,5 @@ bool AP_Baro_Backend::pressure_ok(float press)
         return true;
     }
 
-    return _glitch_filter.is_glitch(range, press);
+    return !_glitch_filter.is_glitch(range, press);
 }
