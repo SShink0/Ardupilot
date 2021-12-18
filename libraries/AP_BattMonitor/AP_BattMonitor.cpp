@@ -505,6 +505,10 @@ void AP_BattMonitor::check_failsafes(void)
                     action = _params[i]._failsafe_critical_action;
                     type_str = "critical";
                     break;
+                case Failsafe::Unhealthy:
+                    action = _params[i]._failsafe_unhealthy_action;
+                    type_str = "unhealthy";
+                    break;
             }
 
             GCS_SEND_TEXT(MAV_SEVERITY_WARNING, "Battery %d is %s %.2fV used %.0f mAh", i + 1, type_str,
@@ -673,7 +677,7 @@ bool AP_BattMonitor::reset_remaining_mask(uint16_t battery_mask, float percentag
 
 // Returns the mavlink charge state. The following mavlink charge states are not used
 // MAV_BATTERY_CHARGE_STATE_EMERGENCY , MAV_BATTERY_CHARGE_STATE_FAILED
-// MAV_BATTERY_CHARGE_STATE_UNHEALTHY, MAV_BATTERY_CHARGE_STATE_CHARGING
+// MAV_BATTERY_CHARGE_STATE_CHARGING
 MAV_BATTERY_CHARGE_STATE AP_BattMonitor::get_mavlink_charge_state(const uint8_t instance) const 
 {
     if (instance >= _num_instances) {
@@ -693,6 +697,9 @@ MAV_BATTERY_CHARGE_STATE AP_BattMonitor::get_mavlink_charge_state(const uint8_t 
 
     case Failsafe::Critical:
         return MAV_BATTERY_CHARGE_STATE_CRITICAL;
+
+    case Failsafe::Unhealthy:
+        return MAV_BATTERY_CHARGE_STATE_UNHEALTHY;
     }
 
     // Should not reach this
