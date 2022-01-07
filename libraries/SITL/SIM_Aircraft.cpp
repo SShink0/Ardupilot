@@ -1000,6 +1000,11 @@ void Aircraft::update_external_payload(const struct sitl_input &input)
         richenpower->update(input);
     }
 
+    // update Loweheiser generator
+    if (loweheiser) {
+        loweheiser->update();
+    }
+
     if (fetteconewireesc) {
         fetteconewireesc->update(*this);
     }
