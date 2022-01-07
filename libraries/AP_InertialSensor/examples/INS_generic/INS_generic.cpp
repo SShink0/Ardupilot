@@ -7,6 +7,7 @@
 #include <AP_InertialSensor/AP_InertialSensor.h>
 #include <AP_ExternalAHRS/AP_ExternalAHRS.h>
 #include <AP_Logger/AP_Logger.h>
+#include <AP_Scheduler/AP_Scheduler.h>
 
 const AP_HAL::HAL &hal = AP_HAL::get_HAL();
 
@@ -22,6 +23,12 @@ static void run_test();
 static AP_BoardConfig BoardConfig;
 static AP_Int32 log_bitmask;
 static AP_Logger logger{log_bitmask};
+static AP_Baro baro;
+static AP_Scheduler scheduler;
+
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+static SITL::SIM sitl;
+#endif
 
 void setup(void);
 void loop(void);
