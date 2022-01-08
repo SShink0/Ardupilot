@@ -8,6 +8,7 @@
 #include <AP_ExternalAHRS/AP_ExternalAHRS.h>
 #include <AP_Logger/AP_Logger.h>
 #include <AP_Scheduler/AP_Scheduler.h>
+#include <AP_Baro/AP_Baro.h>
 
 const AP_HAL::HAL &hal = AP_HAL::get_HAL();
 
