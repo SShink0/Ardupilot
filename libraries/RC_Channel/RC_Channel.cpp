@@ -512,7 +512,10 @@ void RC_Channel::init_aux_function(const aux_func_t ch_option, const AuxSwitchPo
     case AUX_FUNC::MOUNT2_ROLL:
     case AUX_FUNC::MOUNT2_PITCH:
     case AUX_FUNC::MOUNT2_YAW:
+    case AUX_FUNC::LOWEHEISER_STARTER:
         break;
+    // not really aux functions:
+    case AUX_FUNC::LOWEHEISER_THROTTLE:
     case AUX_FUNC::AVOID_ADSB:
     case AUX_FUNC::AVOID_PROXIMITY:
     case AUX_FUNC::FENCE:
@@ -1410,6 +1413,11 @@ bool RC_Channel::do_aux_function(const aux_func_t ch_option, const AuxSwitchPos 
     case AUX_FUNC::SCRIPTING_6:
     case AUX_FUNC::SCRIPTING_7:
     case AUX_FUNC::SCRIPTING_8:
+        break;
+
+    case AUX_FUNC::LOWEHEISER_THROTTLE:
+    case AUX_FUNC::LOWEHEISER_STARTER:
+        // monitored by the library itself
         break;
 
     default:

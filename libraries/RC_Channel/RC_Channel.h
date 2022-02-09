@@ -215,6 +215,8 @@ public:
         FW_AUTOTUNE =          107, // fixed wing auto tune
         QRTL =               108, // QRTL mode
         CUSTOM_CONTROLLER =  109,
+        LOWEHEISER_STARTER = 110,  // allows for manually running starter
+
         // if you add something here, make sure to update the documentation of the parameter in RC_Channel.cpp!
         // also, if you add an option >255, you will need to fix duplicate_options_exist
 
@@ -257,6 +259,7 @@ public:
         MOUNT2_ROLL =        215, // mount2 roll input
         MOUNT2_PITCH =       216, // mount3 pitch input
         MOUNT2_YAW =         217, // mount4 yaw input
+        LOWEHEISER_THROTTLE =218, // allows for throttle on slider
 
         // inputs 248-249 are reserved for the Skybrush fork at
         // https://github.com/skybrush-io/ardupilot
