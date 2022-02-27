@@ -375,6 +375,7 @@ class Board:
         env.GIT_SUBMODULES += ['libguardian']
         
         env.CXXFLAGS += ['-DL8W8JWT_SMALL_STACK=1']
+        env.CXXFLAGS += ['-DHAL_Aerobridge_Guardian']
         
         if cfg.options.build_dates:
             env.build_dates = True

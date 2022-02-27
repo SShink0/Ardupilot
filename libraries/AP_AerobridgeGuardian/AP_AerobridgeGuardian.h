@@ -24,9 +24,9 @@ private:
     static AP_AerobridgeGuardian *_singleton;
     std::string public_key_path;
     std::string token_path;
-    std::string issuer = "auth0";
-    std::string public_key_filename = "RSAKey.pem";
-    std::string token_filename = "token";
+    std::string issuer = "https://id.openskies.sh/";
+    std::string public_key_filename = "trusted_flight/auth_server_public_key.pem";
+    std::string token_filename = "trusted_flight/aerobridge_trusted_flight.jwt.json";
     std::string basepath = HAL_BOARD_STORAGE_DIRECTORY;
 };
 

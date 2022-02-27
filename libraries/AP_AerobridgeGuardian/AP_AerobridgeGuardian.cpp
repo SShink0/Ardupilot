@@ -19,9 +19,6 @@ AP_AerobridgeGuardian::AP_AerobridgeGuardian(){
 }
 
 bool AP_AerobridgeGuardian::is_valid(){
-    hal.console->printf(">>>> checking validity\n");
-    gcs().send_text(MAV_SEVERITY_CRITICAL, ">>>> checking validity\n");
-
     std::string public_key;
     std::string token;
 
@@ -43,50 +40,22 @@ bool AP_AerobridgeGuardian::read_file(std::string &filename, std::string &fileco
     delete filedata;
     return true;
 }
-/*
-struct l8w8jwt_decoding_params
-{
-    int alg;
-    
-    char* jwt;
-    size_t jwt_length;
 
-    unsigned char* verification_key;
-    size_t verification_key_length;
-    
-    char* validate_iss;
-    size_t validate_iss_length;
-    
-    char* validate_sub;
-    size_t validate_sub_length;
-    
-    char* validate_aud;
-    size_t validate_aud_length;
-    
-    char* validate_jti;
-    size_t validate_jti_length;
-    
-    int validate_exp;
-    int validate_nbf;
-    int validate_iat;
-    uint8_t exp_tolerance_seconds;
-    uint8_t nbf_tolerance_seconds;
-    uint8_t iat_tolerance_seconds;
-    
-    char* validate_typ;
-    size_t validate_typ_length;
-};
-*/
 bool AP_AerobridgeGuardian::verify_token(std::string &key, std::string &token) {
 
-    hal.console->printf(">>> verifying token\n");
     params.alg = L8W8JWT_ALG_RS256;
 
     params.jwt = const_cast<char*>(token.c_str());
     params.jwt_length = token.size();
 
-    params.verification_key = reinterpret_cast<unsigned char*>(const_cast<char*>(key.c_str()));
+    params.verification_key = reinterpret_cast<unsigned char *>(const_cast<char *>(key.c_str()));
     params.verification_key_length = key.size();
+
+    params.validate_iss = const_cast<char *>(issuer.c_str());
+    params.validate_iss_length = issuer.size();
+
+    params.validate_exp = 1; 
+    params.exp_tolerance_seconds = 60;
 
     enum l8w8jwt_validation_result validation_result;
     struct l8w8jwt_claim claims;
@@ -95,16 +64,33 @@ bool AP_AerobridgeGuardian::verify_token(std::string &key, std::string &token) {
     
     int decode_result = l8w8jwt_decode(&params, &validation_result, &ref, &claims_count);
 
-    printf("###############################################\n");
-    printf(">>> Decode result: %d | Validation result: %d\n", decode_result, validation_result);
-    printf(">>> Claims count: %lu\n", claims_count);
-    for (struct l8w8jwt_claim* claim = ref; claim < ref + claims_count; ++claim)
-    {
-        printf("%s -> %s\n", claim->key, claim->value);
+    if (decode_result == L8W8JWT_DECODE_FAILED_INVALID_TOKEN_FORMAT) {
+        hal.console->printf("Aerobridge Guardian: Token format invalid\n");
+        gcs().send_text(MAV_SEVERITY_CRITICAL, "Token verification failed\n");
+        return false;
     }
-    printf("###############################################\n");
+    if (decode_result == L8W8JWT_KEY_PARSE_FAILURE) {
+        hal.console->printf("Aerobridge Guardian: Public Key format invalid\n");
+        gcs().send_text(MAV_SEVERITY_CRITICAL, "Token verification failed\n");
+        return false;
+    }
+    if (validation_result == L8W8JWT_ISS_FAILURE) {
+        hal.console->printf("Aerobridge Guardian: Invalid issuer\n");
+        gcs().send_text(MAV_SEVERITY_CRITICAL, "Token verification failed\n");
+        return false;
+    }
+    if (validation_result == L8W8JWT_EXP_FAILURE) {
+        hal.console->printf("Aerobridge Guardian: Token expired\n");
+        gcs().send_text(MAV_SEVERITY_CRITICAL, "Token verification failed\n");
+        return false;
+    }
     
-    return decode_result == L8W8JWT_SUCCESS && validation_result == L8W8JWT_VALID;
+    if (decode_result != L8W8JWT_SUCCESS || validation_result != L8W8JWT_VALID) {
+        hal.console->printf("Aerobridge Guardian: Failed: decode_result: %d, validation_result: %d\n", decode_result, validation_result);
+        gcs().send_text(MAV_SEVERITY_CRITICAL, "Token verification failed\n");
+        return false;
+    }
+    return true;
 }
 
 std::string AP_AerobridgeGuardian::get_filepath(std::string &filename) {
