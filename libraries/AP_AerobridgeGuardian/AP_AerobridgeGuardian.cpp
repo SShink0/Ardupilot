@@ -20,7 +20,8 @@
 
 extern const AP_HAL::HAL& hal;
 
-AP_AerobridgeGuardian::AP_AerobridgeGuardian(){
+AP_AerobridgeGuardian::AP_AerobridgeGuardian()
+{
     if (_singleton != nullptr) {
         AP_HAL::panic("Too many AerobridgeGuardian modules");
         return;
@@ -28,22 +29,24 @@ AP_AerobridgeGuardian::AP_AerobridgeGuardian(){
 
     public_key_path = get_filepath(public_key_filename);
     token_path = get_filepath(token_filename);
-    
+
     l8w8jwt_decoding_params_init(&params);
 
     _singleton = this;
 }
 
-bool AP_AerobridgeGuardian::is_valid(){
+bool AP_AerobridgeGuardian::is_valid()
+{
     std::string public_key;
     std::string token;
 
     return read_file(public_key_path, public_key) && read_file(token_path, token) && verify_token(public_key, token);
 }
 
-bool AP_AerobridgeGuardian::read_file(std::string &filename, std::string &filecontent) {
+bool AP_AerobridgeGuardian::read_file(std::string &filename, std::string &filecontent)
+{
     FileData *filedata = AP::FS().load_file(get_filepath(filename).c_str());
-    
+
     if (filedata == nullptr) {
         hal.console->printf("Cannot load file %s\n", filename.c_str());
         return false;
@@ -57,7 +60,8 @@ bool AP_AerobridgeGuardian::read_file(std::string &filename, std::string &fileco
     return true;
 }
 
-bool AP_AerobridgeGuardian::verify_token(std::string &key, std::string &token) {
+bool AP_AerobridgeGuardian::verify_token(std::string &key, std::string &token)
+{
 
     params.alg = L8W8JWT_ALG_RS256;
 
@@ -70,14 +74,14 @@ bool AP_AerobridgeGuardian::verify_token(std::string &key, std::string &token) {
     params.validate_iss = const_cast<char *>(issuer.c_str());
     params.validate_iss_length = issuer.size();
 
-    params.validate_exp = 1; 
+    params.validate_exp = 1;
     params.exp_tolerance_seconds = 60;
 
     enum l8w8jwt_validation_result validation_result;
     struct l8w8jwt_claim claims;
     struct l8w8jwt_claim* ref = &claims;
     size_t claims_count;
-    
+
     int decode_result = l8w8jwt_decode(&params, &validation_result, &ref, &claims_count);
 
     if (decode_result == L8W8JWT_DECODE_FAILED_INVALID_TOKEN_FORMAT) {
@@ -100,7 +104,7 @@ bool AP_AerobridgeGuardian::verify_token(std::string &key, std::string &token) {
         gcs().send_text(MAV_SEVERITY_CRITICAL, "Token verification failed\n");
         return false;
     }
-    
+
     if (decode_result != L8W8JWT_SUCCESS || validation_result != L8W8JWT_VALID) {
         hal.console->printf("Aerobridge Guardian: Failed: decode_result: %d, validation_result: %d\n", decode_result, validation_result);
         gcs().send_text(MAV_SEVERITY_CRITICAL, "Token verification failed\n");
@@ -109,15 +113,18 @@ bool AP_AerobridgeGuardian::verify_token(std::string &key, std::string &token) {
     return true;
 }
 
-std::string AP_AerobridgeGuardian::get_filepath(std::string &filename) {
-    std::string filepath = basepath + "/" + filename; 
+std::string AP_AerobridgeGuardian::get_filepath(std::string &filename)
+{
+    std::string filepath = basepath + "/" + filename;
     return filepath;
 }
 
 AP_AerobridgeGuardian *AP_AerobridgeGuardian::_singleton;
 
-namespace AP {
-    AP_AerobridgeGuardian &aerobridge_guardian() {
-        return *AP_AerobridgeGuardian::get_singleton();
-    }
+namespace AP
+{
+AP_AerobridgeGuardian &aerobridge_guardian()
+{
+    return *AP_AerobridgeGuardian::get_singleton();
+}
 };
