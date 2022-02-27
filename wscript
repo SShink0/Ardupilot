@@ -220,6 +220,11 @@ submodules at specific revisions.
                  default=False,
                  help="enable generation of scripting documentation")
 
+    g.add_option('--enable-aerobridge-guardian', 
+                 action='store_true',
+                 default=False,
+                 help="Enable Aerobridge Guardian (JWT based permissioning artifact)")
+
     g = opt.ap_groups['linux']
 
     linux_options = ('--prefix', '--destdir', '--bindir', '--libdir')
@@ -439,6 +444,12 @@ def configure(cfg):
 
     cfg.start_msg('Unit tests')
     if cfg.env.HAS_GTEST:
+        cfg.end_msg('enabled')
+    else:
+        cfg.end_msg('disabled', color='YELLOW')
+
+    cfg.start_msg('Aerobridge Guardian')
+    if cfg.options.enable_aerobridge_guardian:
         cfg.end_msg('enabled')
     else:
         cfg.end_msg('disabled', color='YELLOW')

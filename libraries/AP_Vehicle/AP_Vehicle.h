@@ -47,7 +47,11 @@
 #include <AP_Frsky_Telem/AP_Frsky_Parameters.h>
 #include <AP_ExternalAHRS/AP_ExternalAHRS.h>
 #include <AP_VideoTX/AP_SmartAudio.h>
+
+#ifdef HAL_Aerobridge_Guardian
 #include <AP_AerobridgeGuardian/AP_AerobridgeGuardian.h>
+#endif
+
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
 #include <SITL/SITL.h>
 #endif
@@ -328,8 +332,10 @@ protected:
     // Inertial Navigation EKF
     AP_AHRS ahrs;
 
+#ifdef HAL_Aerobridge_Guardian
     // Aerobridge Guardian: jwt permission verification
     AP_AerobridgeGuardian aerobridge_guardian;
+#endif
 
 #if HAL_HOTT_TELEM_ENABLED
     AP_Hott_Telem hott_telem;

@@ -43,7 +43,10 @@
 #include <AP_OSD/AP_OSD.h>
 #include <AP_Button/AP_Button.h>
 #include <AP_FETtecOneWire/AP_FETtecOneWire.h>
+
+#ifdef HAL_Aerobridge_Guardian
 #include <AP_AerobridgeGuardian/AP_AerobridgeGuardian.h>
+#endif
 
 #if HAL_MAX_CAN_PROTOCOL_DRIVERS
   #include <AP_CANManager/AP_CANManager.h>
