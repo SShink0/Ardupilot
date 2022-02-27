@@ -358,6 +358,24 @@ class Board:
                 cfg.srcnode.find_dir('modules/uavcan/libuavcan/include').abspath()
             ]
 
+        env.AP_LIBRARIES += [
+            'modules/libguardian/src/*.c',
+            'modules/libguardian/lib/mbedtls/library/*c',
+        ]
+
+        env.INCLUDES += [
+            cfg.srcnode.find_dir('modules/libguardian/include/').abspath(),
+            cfg.srcnode.find_dir('modules/libguardian/lib/checknum/include/').abspath(),
+            cfg.srcnode.find_dir('modules/libguardian/lib/chillbuff/include/').abspath(),
+            cfg.srcnode.find_dir('modules/libguardian/lib/jsmn/').abspath(),
+            cfg.srcnode.find_dir('modules/libguardian/lib/mbedtls/include/').abspath(),
+            cfg.srcnode.find_dir('modules/libguardian/lib/mbedtls/library/').abspath()
+        ]
+
+        env.GIT_SUBMODULES += ['libguardian']
+        
+        env.CXXFLAGS += ['-DL8W8JWT_SMALL_STACK=1']
+        
         if cfg.options.build_dates:
             env.build_dates = True
 
