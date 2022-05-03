@@ -96,12 +96,7 @@ bool MAVLink_routing::check_and_forward(mavlink_channel_t in_channel, const mavl
         msg.compid == mavlink_system.compid) {
         return true;
     }
-
-    // don't ever forward data from a private channel
-    if ((GCS_MAVLINK::is_private(in_channel))) {
-        return true;
-    }
-
+    
     // learn new routes
     learn_route(in_channel, msg);
 
@@ -127,6 +122,17 @@ bool MAVLink_routing::check_and_forward(mavlink_channel_t in_channel, const mavl
     int16_t target_component = -1;
     get_targets(msg, target_system, target_component);
 
+    // don't ever forward data from a private channel
+    // If it is a broadcast message, it should not be processed locally.
+    if (GCS_MAVLINK::is_private(in_channel)) {
+        if (target_system == mavlink_system.sysid &&
+            target_component == mavlink_system.compid) {
+            return true;
+        }
+        else
+            return false;
+    }
+
     bool broadcast_system = (target_system == 0 || target_system == -1);
     bool broadcast_component = (target_component == 0 || target_component == -1);
     bool match_system = broadcast_system || (target_system == mavlink_system.sysid);
@@ -145,10 +151,8 @@ bool MAVLink_routing::check_and_forward(mavlink_channel_t in_channel, const mavl
     memset(sent_to_chan, 0, sizeof(sent_to_chan));
     for (uint8_t i=0; i<num_routes; i++) {
 
-        // Skip if channel is private and the target system or component IDs do not match
-        if ((GCS_MAVLINK::is_private(routes[i].channel)) &&
-            (target_system != routes[i].sysid ||
-             target_component != routes[i].compid)) {
+        // Skip if channel is private
+        if (GCS_MAVLINK::is_private(routes[i].channel)) {
             continue;
         }
 
