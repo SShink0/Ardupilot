@@ -71,4 +71,6 @@ generate_parameters AP_Periph
 
 generate_parameters Blimp
 
+generate_parameters Heli
+
 generate_sitl_parameters

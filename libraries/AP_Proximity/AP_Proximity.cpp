@@ -154,7 +154,7 @@ const AP_Param::GroupInfo AP_Proximity::var_info[] = {
     // @User: Standard
     AP_GROUPINFO("_IGN_WID6", 15, AP_Proximity, _ignore_width_deg[5], 0),
 
-    // @Param{Copter}: _IGN_GND
+    // @Param{Copter,Heli}: _IGN_GND
     // @DisplayName: Proximity sensor land detection
     // @Description: Ignore proximity data that is within 1 meter of the ground below the vehicle. This requires a downward facing rangefinder
     // @Values: 0:Disabled, 1:Enabled
