@@ -109,15 +109,10 @@ public:
 
     bool pre_arm_checks(char *failure_msg, uint8_t failure_msg_len) const;
 
-    // send any pending terrain request message
-    bool send_cache_request(mavlink_channel_t chan);
-    void send_request(mavlink_channel_t chan);
-
     // handle terrain data and reports from GCS
-    void send_terrain_report(mavlink_channel_t chan, const Location &loc, bool extrapolate);
-    void handle_data(mavlink_channel_t chan, const mavlink_message_t &msg);
-    void handle_terrain_check(mavlink_channel_t chan, const mavlink_message_t &msg);
-    void handle_terrain_data(const mavlink_message_t &msg);
+    void send_request(class GCS_MAVLINK &link);
+    typedef struct __mavlink_message mavlink_message_t;
+    void handle_message(class GCS_MAVLINK &link, const mavlink_message_t &msg);
 
     /*
       find the terrain height in meters above sea level for a location
@@ -315,8 +310,14 @@ private:
     /*
       request any missing 4x4 grids from a block
     */
-    bool request_missing(mavlink_channel_t chan, struct grid_cache &gcache);
-    bool request_missing(mavlink_channel_t chan, const struct grid_info &info);
+    bool request_missing(class GCS_MAVLINK &link, struct grid_cache &gcache);
+    bool request_missing(class GCS_MAVLINK &link, const struct grid_info &info);
+
+    // send any pending terrain request message
+    bool send_cache_request(class GCS_MAVLINK &link);
+    void send_terrain_report(class GCS_MAVLINK &link, const class Location &loc, bool extrapolate);
+    void handle_terrain_check(class GCS_MAVLINK &link, const mavlink_message_t &msg);
+    void handle_terrain_data(const mavlink_message_t &msg);
 
     /*
       look for blocks that need to be read/written to disk
