@@ -527,10 +527,6 @@ void GCS_MAVLINK_Blimp::handleMessage(const mavlink_message_t &msg)
         break;
     }
 
-    case MAVLINK_MSG_ID_TERRAIN_DATA:
-    case MAVLINK_MSG_ID_TERRAIN_CHECK:
-        break;
-
     default:
         handle_common_message(msg);
         break;
