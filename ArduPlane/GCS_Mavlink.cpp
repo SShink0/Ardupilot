@@ -390,13 +390,6 @@ bool GCS_MAVLINK_Plane::try_send_message(enum ap_message id)
         // unused
         break;
 
-    case MSG_TERRAIN:
-#if AP_TERRAIN_AVAILABLE
-        CHECK_PAYLOAD_SIZE(TERRAIN_REQUEST);
-        plane.terrain.send_request(chan);
-#endif
-        break;
-
     case MSG_WIND:
         CHECK_PAYLOAD_SIZE(WIND);
         send_wind();
@@ -1152,13 +1145,6 @@ void GCS_MAVLINK_Plane::handleMessage(const mavlink_message_t &msg)
         handle_radio_status(msg, plane.should_log(MASK_LOG_PM));
         break;
     }
-
-    case MAVLINK_MSG_ID_TERRAIN_DATA:
-    case MAVLINK_MSG_ID_TERRAIN_CHECK:
-#if AP_TERRAIN_AVAILABLE
-        plane.terrain.handle_data(chan, msg);
-#endif
-        break;
 
     case MAVLINK_MSG_ID_SET_ATTITUDE_TARGET:
     {
