@@ -14,26 +14,16 @@
  */
 #pragma once
 
-#include <AP_Common/AP_Common.h>
-#include <AP_HAL/AP_HAL_Boards.h>
-#include <AP_Common/Location.h>
-#include <AP_Filesystem/AP_Filesystem_config.h>
-#include <GCS_MAVLink/GCS_MAVLink.h>
-
-#ifndef AP_TERRAIN_AVAILABLE
-#if HAVE_FILESYSTEM_SUPPORT && defined(HAL_BOARD_TERRAIN_DIRECTORY)
-#define AP_TERRAIN_AVAILABLE 1
-#else
-#define AP_TERRAIN_AVAILABLE 0
-#endif
-#endif
+#include "AP_Terrain_config.h"
 
 #if AP_TERRAIN_AVAILABLE
 
+#include <AP_Common/AP_Common.h>
+#include <AP_Common/Location.h>
+#include <GCS_MAVLink/GCS_MAVLink.h>
 #include <AP_Param/AP_Param.h>
 
 #define TERRAIN_DEBUG 0
-
 
 // MAVLink sends 4x4 grids
 #define TERRAIN_GRID_MAVLINK_SIZE 4
@@ -471,4 +461,3 @@ namespace AP {
 };
 
 #endif // AP_TERRAIN_AVAILABLE
-

@@ -22,7 +22,7 @@
 #include "AP_Terrain.h"
 #include <AP_AHRS/AP_AHRS.h>
 
-#if AP_TERRAIN_AVAILABLE
+#if AP_TERRAIN_AVAILABLE && (APM_BUILD_COPTER_OR_HELI || APM_BUILD_TYPE(APM_BUILD_ArduPlane) || APM_BUILD_TYPE(APM_BUILD_ArduSub) || APM_BUILD_TYPE(APM_BUILD_UNKNOWN))
 
 #include <AP_Filesystem/AP_Filesystem.h>
 
@@ -544,5 +544,42 @@ AP_Terrain *terrain()
 }
 
 };
+
+#elif AP_TERRAIN_AVAILABLE
+
+// dummy methods for when we're really not available on this vehicle:
+namespace AP {
+
+AP_Terrain *terrain()
+{
+    return nullptr;
+}
+
+};
+
+AP_Terrain *AP_Terrain::singleton;
+
+bool AP_Terrain::height_above_terrain(float &terrain_altitude, bool extrapolate) { return false; }
+
+bool AP_Terrain::allocate(void) { return false; }
+
+void AP_Terrain::update_reference_offset(void) {}
+
+void AP_Terrain::update(void) {}
+
+bool AP_Terrain::height_amsl(const Location &loc, float &height, bool corrected) { return false; }
+
+void AP_Terrain::set_reference_location(void) {}
+
+bool AP_Terrain::height_terrain_difference_home(float &terrain_difference,
+                                                bool extrapolate)
+{
+    return false;
+}
+
+bool AP_Terrain::pre_arm_checks(char *failure_msg, uint8_t failure_msg_len) const
+{
+    return false;
+}
 
 #endif // AP_TERRAIN_AVAILABLE
