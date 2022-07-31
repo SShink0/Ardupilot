@@ -25,7 +25,7 @@ public:
     { update_status(); }
 
     // start all the registered calibrations
-    void start(GCS_MAVLINK *gcs);
+    void start(GCS_MAVLINK *gcs, uint8_t sysid, uint8_t compid);
 
     // called on calibration cancellation
     void cancel();
@@ -51,6 +51,8 @@ public:
 
 private:
     GCS_MAVLINK *_gcs;
+    uint8_t _sysid;
+    uint8_t _compid;
     bool _use_gcs_snoop;
     bool _waiting_for_mavlink_ack = false;
     uint32_t _last_position_request_ms;

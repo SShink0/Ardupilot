@@ -4083,7 +4083,7 @@ MAV_RESULT GCS_MAVLINK::_handle_command_preflight_calibration(const mavlink_comm
         }
         // start accel cal
         AP::ins().acal_init();
-        AP::ins().get_acal()->start(this);
+        AP::ins().get_acal()->start(this, msg.sysid, msg.compid);
         return MAV_RESULT_ACCEPTED;
     }
 #endif
