@@ -31,6 +31,7 @@
 #include "SIM_ICM40609.h"
 #include "SIM_MS5525.h"
 #include "SIM_MS5611.h"
+#include "SIM_INA3221.h"
 
 #include <signal.h>
 
@@ -63,6 +64,7 @@ static MCP9600 mcp9600;
 static ICM40609 icm40609;
 static MS5525 ms5525;
 static MS5611 ms5611;
+static INA3221 ina3221;
 
 struct i2c_device_at_address {
     uint8_t bus;
@@ -79,7 +81,8 @@ struct i2c_device_at_address {
     { 1, 0x38, ignored }, // NCP5623
     { 1, 0x39, ignored }, // NCP5623C
     { 1, 0x40, ignored }, // KellerLD
-    { 1, 0x76, ms5525 },  // MS5525: ARSPD_TYPE = 4
+    { 1, 0x76, ms5525 },
+    { 1, 0x42, ina3221 },
     { 1, 0x77, tsys01 },
     { 1, 0x0B, rotoye },        // Rotoye: BATTx_MONITOR 19, BATTx_I2C_ADDR 13
     { 2, 0x0B, maxell },        // Maxell: BATTx_MONITOR 16, BATTx_I2C_ADDR 13

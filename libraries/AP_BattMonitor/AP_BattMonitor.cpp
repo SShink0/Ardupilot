@@ -16,6 +16,7 @@
 #include "AP_BattMonitor_INA2xx.h"
 #include "AP_BattMonitor_LTC2946.h"
 #include "AP_BattMonitor_Torqeedo.h"
+#include "AP_BattMonitor_INA3221.h"
 
 #include <AP_HAL/AP_HAL.h>
 
@@ -296,6 +297,32 @@ AP_BattMonitor::init()
 #if HAL_TORQEEDO_ENABLED
             case Type::Torqeedo:
                 drivers[instance] = new AP_BattMonitor_Torqeedo(*this, state[instance], _params[instance]);
+                break;
+#endif
+#if HAL_BATTMON_INA3221_ENABLED
+            case Type::INA3221_CH1:
+//                _params[instance]._i2c_bus.set_default(AP_BATTMONITOR_SMBUS_BUS_INTERNAL),
+                drivers[instance] = new AP_BattMonitor_INA3221(
+                    *this,
+                    state[instance],
+                    _params[instance],
+                    Type::INA3221_CH1);
+                break;
+            case Type::INA3221_CH2:
+//                _params[instance]._i2c_bus.set_default(AP_BATTMONITOR_SMBUS_BUS_INTERNAL),
+                drivers[instance] = new AP_BattMonitor_INA3221(
+                    *this,
+                    state[instance],
+                    _params[instance],
+                    Type::INA3221_CH2);
+                break;
+            case Type::INA3221_CH3:
+//                _params[instance]._i2c_bus.set_default(AP_BATTMONITOR_SMBUS_BUS_INTERNAL),
+                drivers[instance] = new AP_BattMonitor_INA3221(
+                    *this,
+                    state[instance],
+                    _params[instance],
+                    Type::INA3221_CH3);
                 break;
 #endif
             case Type::NONE:
