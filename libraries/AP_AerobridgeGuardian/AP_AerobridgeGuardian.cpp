@@ -110,6 +110,7 @@ bool AP_AerobridgeGuardian::verify_token(std::string &key, std::string &token)
         gcs().send_text(MAV_SEVERITY_CRITICAL, "Token verification failed\n");
         return false;
     }
+    hal.console->printf("Aerobridge Guardian: Token verification successful\n");
     return true;
 }
 
