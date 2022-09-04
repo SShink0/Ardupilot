@@ -6963,6 +6963,9 @@ Also, ignores heartbeats not from our target system'''
         return statustext_full
 
     # routines helpful for testing LUA scripting:
+    def script_applet_source_path(self, scriptname):
+        return os.path.join(self.rootdir(), "libraries", "AP_Scripting", "applets", scriptname)
+
     def script_example_source_path(self, scriptname):
         return os.path.join(self.rootdir(), "libraries", "AP_Scripting", "examples", scriptname)
 
@@ -6980,6 +6983,10 @@ Also, ignores heartbeats not from our target system'''
         self.progress("Copying (%s) to (%s)" % (source, dest))
         shutil.copy(source, dest)
 
+    def install_applet_script(self, scriptname):
+        source = self.script_applet_source_path(scriptname)
+        self.install_script(source, scriptname)
+
     def install_example_script(self, scriptname):
         source = self.script_example_source_path(scriptname)
         self.install_script(source, scriptname)
@@ -6987,6 +6994,15 @@ Also, ignores heartbeats not from our target system'''
     def install_test_script(self, scriptname):
         source = self.script_test_source_path(scriptname)
         self.install_script(source, scriptname)
+
+    def remove_applet_script(self, scriptname):
+        dest = self.installed_script_path(scriptname)
+        try:
+            os.unlink(dest)
+        except IOError:
+            pass
+        except OSError:
+            pass
 
     def remove_example_script(self, scriptname):
         dest = self.installed_script_path(scriptname)
