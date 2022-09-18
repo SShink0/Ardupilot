@@ -48,8 +48,8 @@
 #include <AP_ExternalAHRS/AP_ExternalAHRS.h>
 #include <AP_VideoTX/AP_SmartAudio.h>
 
-#ifdef HAL_Aerobridge_Guardian
-#include <AP_AerobridgeGuardian/AP_AerobridgeGuardian.h>
+#ifdef HAL_Aerobridge_Trusted_Flight
+#include <AP_AerobridgeTrustedFlight/AP_AerobridgeTrustedFlight.h>
 #endif
 
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
@@ -332,9 +332,9 @@ protected:
     // Inertial Navigation EKF
     AP_AHRS ahrs;
 
-#ifdef HAL_Aerobridge_Guardian
-    // Aerobridge Guardian: jwt permission verification
-    AP_AerobridgeGuardian aerobridge_guardian;
+#ifdef HAL_Aerobridge_Trusted_Flight
+    // Aerobridge Flight: jwt permission verification
+    AP_AerobridgeTrustedFlight aerobridge_trusted_flight;
 #endif
 
 #if HAL_HOTT_TELEM_ENABLED

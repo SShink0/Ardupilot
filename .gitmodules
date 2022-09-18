@@ -34,6 +34,6 @@
 [submodule "modules/CrashDebug"]
 	path = modules/CrashDebug
 	url = https://github.com/adamgreen/CrashDebug
-[submodule "modules/libguardian"]
-	path = modules/libguardian
+[submodule "modules/trusted_flight"]
+	path = modules/trusted_flight
 	url = https://github.com/GlitchedPolygons/l8w8jwt.git

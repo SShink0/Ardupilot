@@ -44,8 +44,8 @@
 #include <AP_Button/AP_Button.h>
 #include <AP_FETtecOneWire/AP_FETtecOneWire.h>
 
-#ifdef HAL_Aerobridge_Guardian
-#include <AP_AerobridgeGuardian/AP_AerobridgeGuardian.h>
+#ifdef HAL_Aerobridge_Trusted_Flight
+#include <AP_AerobridgeTrustedFlight/AP_AerobridgeTrustedFlight.h>
 #endif
 
 #if HAL_MAX_CAN_PROTOCOL_DRIVERS
@@ -1358,8 +1358,8 @@ bool AP_Arming::arm(AP_Arming::Method method, const bool do_arming_checks)
 
     armed = (!do_arming_checks && mandatory_checks(true)) || (pre_arm_checks(true) && arm_checks(method));
 
-#ifdef HAL_Aerobridge_Guardian
-    armed &= AP::aerobridge_guardian().is_valid();
+#ifdef HAL_Aerobridge_Trusted_Flight
+    armed &= AP::aerobridge_trusted_flight().is_valid();
 #endif
 
     if (armed) {

@@ -16,14 +16,14 @@
  */
 #include <AP_Filesystem/AP_Filesystem.h>
 #include <GCS_MAVLink/GCS.h>
-#include "AP_AerobridgeGuardian.h"
+#include "AP_AerobridgeTrustedFlight.h"
 
 extern const AP_HAL::HAL& hal;
 
-AP_AerobridgeGuardian::AP_AerobridgeGuardian()
+AP_AerobridgeTrustedFlight::AP_AerobridgeTrustedFlight()
 {
     if (_singleton != nullptr) {
-        AP_HAL::panic("Too many AerobridgeGuardian modules");
+        AP_HAL::panic("Too many AerobridgeTrustedFlight modules");
         return;
     }
 
@@ -35,7 +35,7 @@ AP_AerobridgeGuardian::AP_AerobridgeGuardian()
     _singleton = this;
 }
 
-bool AP_AerobridgeGuardian::is_valid()
+bool AP_AerobridgeTrustedFlight::is_valid()
 {
     std::string public_key;
     std::string token;
@@ -43,7 +43,7 @@ bool AP_AerobridgeGuardian::is_valid()
     return read_file(public_key_path, public_key) && read_file(token_path, token) && verify_token(public_key, token);
 }
 
-bool AP_AerobridgeGuardian::read_file(std::string &filename, std::string &filecontent)
+bool AP_AerobridgeTrustedFlight::read_file(std::string &filename, std::string &filecontent)
 {
     FileData *filedata = AP::FS().load_file(get_filepath(filename).c_str());
 
@@ -60,7 +60,7 @@ bool AP_AerobridgeGuardian::read_file(std::string &filename, std::string &fileco
     return true;
 }
 
-bool AP_AerobridgeGuardian::verify_token(std::string &key, std::string &token)
+bool AP_AerobridgeTrustedFlight::verify_token(std::string &key, std::string &token)
 {
 
     params.alg = L8W8JWT_ALG_RS256;
@@ -85,47 +85,47 @@ bool AP_AerobridgeGuardian::verify_token(std::string &key, std::string &token)
     int decode_result = l8w8jwt_decode(&params, &validation_result, &ref, &claims_count);
 
     if (decode_result == L8W8JWT_DECODE_FAILED_INVALID_TOKEN_FORMAT) {
-        hal.console->printf("Aerobridge Guardian: Token format invalid\n");
+        hal.console->printf("Aerobridge Trusted Flight: Token format invalid\n");
         gcs().send_text(MAV_SEVERITY_CRITICAL, "Token verification failed\n");
         return false;
     }
     if (decode_result == L8W8JWT_KEY_PARSE_FAILURE) {
-        hal.console->printf("Aerobridge Guardian: Public Key format invalid\n");
+        hal.console->printf("Aerobridge Trusted Flight: Public Key format invalid\n");
         gcs().send_text(MAV_SEVERITY_CRITICAL, "Token verification failed\n");
         return false;
     }
     if (validation_result == L8W8JWT_ISS_FAILURE) {
-        hal.console->printf("Aerobridge Guardian: Invalid issuer\n");
+        hal.console->printf("Aerobridge Trusted Flight: Invalid issuer\n");
         gcs().send_text(MAV_SEVERITY_CRITICAL, "Token verification failed\n");
         return false;
     }
     if (validation_result == L8W8JWT_EXP_FAILURE) {
-        hal.console->printf("Aerobridge Guardian: Token expired\n");
+        hal.console->printf("Aerobridge Trusted Flight: Token expired\n");
         gcs().send_text(MAV_SEVERITY_CRITICAL, "Token verification failed\n");
         return false;
     }
 
     if (decode_result != L8W8JWT_SUCCESS || validation_result != L8W8JWT_VALID) {
-        hal.console->printf("Aerobridge Guardian: Failed: decode_result: %d, validation_result: %d\n", decode_result, validation_result);
+        hal.console->printf("Aerobridge Trusted Flight: Failed: decode_result: %d, validation_result: %d\n", decode_result, validation_result);
         gcs().send_text(MAV_SEVERITY_CRITICAL, "Token verification failed\n");
         return false;
     }
-    hal.console->printf("Aerobridge Guardian: Token verification successful\n");
+    hal.console->printf("Aerobridge Trusted Flight: Token verification successful\n");
     return true;
 }
 
-std::string AP_AerobridgeGuardian::get_filepath(std::string &filename)
+std::string AP_AerobridgeTrustedFlight::get_filepath(std::string &filename)
 {
     std::string filepath = basepath + "/" + filename;
     return filepath;
 }
 
-AP_AerobridgeGuardian *AP_AerobridgeGuardian::_singleton;
+AP_AerobridgeTrustedFlight *AP_AerobridgeTrustedFlight::_singleton;
 
 namespace AP
 {
-AP_AerobridgeGuardian &aerobridge_guardian()
+AP_AerobridgeTrustedFlight &aerobridge_trusted_flight()
 {
-    return *AP_AerobridgeGuardian::get_singleton();
+    return *AP_AerobridgeTrustedFlight::get_singleton();
 }
 };

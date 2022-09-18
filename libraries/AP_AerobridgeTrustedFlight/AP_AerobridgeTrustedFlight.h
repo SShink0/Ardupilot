@@ -20,12 +20,12 @@
 #include <AP_HAL/AP_HAL.h>
 #include <l8w8jwt/decode.h>
 
-class AP_AerobridgeGuardian
+class AP_AerobridgeTrustedFlight
 {
 public:
-    AP_AerobridgeGuardian();
+    AP_AerobridgeTrustedFlight();
 
-    static AP_AerobridgeGuardian *get_singleton()
+    static AP_AerobridgeTrustedFlight *get_singleton()
     {
         return _singleton;
     }
@@ -39,7 +39,7 @@ private:
     std::string get_filepath(std::string &filename);
 
     struct l8w8jwt_decoding_params params;
-    static AP_AerobridgeGuardian *_singleton;
+    static AP_AerobridgeTrustedFlight *_singleton;
     std::string public_key_path;
     std::string token_path;
     std::string issuer = "https://id.openskies.sh/";
@@ -50,5 +50,5 @@ private:
 
 namespace AP
 {
-AP_AerobridgeGuardian &aerobridge_guardian();
+AP_AerobridgeTrustedFlight &aerobridge_trusted_flight();
 };

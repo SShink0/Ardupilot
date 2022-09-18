@@ -220,10 +220,10 @@ submodules at specific revisions.
                  default=False,
                  help="enable generation of scripting documentation")
 
-    g.add_option('--enable-aerobridge-guardian', 
+    g.add_option('--enable-aerobridge-trusted-flight', 
                  action='store_true',
                  default=False,
-                 help="Enable Aerobridge Guardian (JWT based permissioning artifact)")
+                 help="Enable Aerobridge Trusted Flight (JWT based permissioning artifact)")
 
     g = opt.ap_groups['linux']
 
@@ -448,8 +448,8 @@ def configure(cfg):
     else:
         cfg.end_msg('disabled', color='YELLOW')
 
-    cfg.start_msg('Aerobridge Guardian')
-    if cfg.options.enable_aerobridge_guardian:
+    cfg.start_msg('Aerobridge Trusted Flight')
+    if cfg.options.enable_aerobridge_trusted_flight:
         cfg.end_msg('enabled')
     else:
         cfg.end_msg('disabled', color='YELLOW')
