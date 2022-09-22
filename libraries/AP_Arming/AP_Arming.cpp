@@ -44,6 +44,10 @@
 #include <AP_Button/AP_Button.h>
 #include <AP_FETtecOneWire/AP_FETtecOneWire.h>
 
+#ifdef HAL_Aerobridge_Trusted_Flight
+#include <AP_AerobridgeTrustedFlight/AP_AerobridgeTrustedFlight.h>
+#endif
+
 #if HAL_MAX_CAN_PROTOCOL_DRIVERS
   #include <AP_CANManager/AP_CANManager.h>
   #include <AP_Common/AP_Common.h>
@@ -1352,14 +1356,16 @@ bool AP_Arming::arm(AP_Arming::Method method, const bool do_arming_checks)
         return false;
     }
 
-    if ((!do_arming_checks && mandatory_checks(true)) || (pre_arm_checks(true) && arm_checks(method))) {
-        armed = true;
+    armed = (!do_arming_checks && mandatory_checks(true)) || (pre_arm_checks(true) && arm_checks(method));
 
+#ifdef HAL_Aerobridge_Trusted_Flight
+    armed &= AP::aerobridge_trusted_flight().is_valid();
+#endif
+
+    if (armed) {
         Log_Write_Arm(!do_arming_checks, method); // note Log_Write_Armed takes forced not do_arming_checks
-
     } else {
         AP::logger().arming_failure();
-        armed = false;
     }
 
 #if HAL_LOGGER_FILE_CONTENTS_ENABLED

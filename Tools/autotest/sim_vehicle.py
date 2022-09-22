@@ -303,6 +303,9 @@ def do_build(opts, frame_options):
     if opts.debug:
         cmd_configure.append("--debug")
 
+    if opts.enable_aerobridge_trusted_flight:
+        cmd_configure.append("--enable-aerobridge-trusted-flight")
+
     if opts.enable_onvif and 'antennatracker' in frame_options["waf_target"]:
         cmd_configure.append("--enable-onvif")
 
@@ -980,6 +983,9 @@ group_sim.add_option("-T", "--tracker",
 group_sim.add_option("", "--enable-onvif",
                      action="store_true",
                      help="enable onvif camera control sim using AntennaTracker")
+group_sim.add_option("", "--enable-aerobridge-trusted-flight",
+                     action="store_true",
+                     help="Enable Aerobridge Trusted Flight (JWT based permissioning artifact)")
 group_sim.add_option("-A", "--sitl-instance-args",
                      type='string',
                      default=None,
