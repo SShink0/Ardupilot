@@ -34,7 +34,7 @@ public:
     // See if we can read in some data
     void update();
 
-    void init(AP_SerialManager::SerialProtocol prot, uint8_t prot_instance);
+    bool init(AP_SerialManager::SerialProtocol prot, uint8_t prot_instance);
     void init(AP_HAL::UARTDriver *_uart) { nmea_input_uart = _uart; }
 
 protected:

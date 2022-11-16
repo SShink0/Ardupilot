@@ -1,16 +1,18 @@
 #include "AP_NMEA_Input.h"
 
-void AP_NMEA_Input::init(AP_SerialManager::SerialProtocol prot, uint8_t prot_instance)
+bool AP_NMEA_Input::init(AP_SerialManager::SerialProtocol prot, uint8_t prot_instance)
 {
     const AP_SerialManager& serial_manager = AP::serialmanager();
     auto *_nmea_input_uart = serial_manager.find_serial(prot, prot_instance);
     if (_nmea_input_uart == nullptr) {
-        return;
+        return false;
     }
 
     _nmea_input_uart->begin(serial_manager.find_baudrate(prot, prot_instance));
 
     init(_nmea_input_uart);
+
+    return true;
 }
 
 void AP_NMEA_Input::update()
