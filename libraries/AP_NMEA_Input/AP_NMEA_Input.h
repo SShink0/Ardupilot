@@ -35,6 +35,7 @@ public:
     void update();
 
     void init(AP_SerialManager::SerialProtocol prot, uint8_t prot_instance);
+    void init(AP_HAL::UARTDriver _uart) { uart = _uart; }
 
 protected:
 

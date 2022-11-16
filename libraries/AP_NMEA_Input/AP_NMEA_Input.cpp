@@ -3,12 +3,14 @@
 void AP_NMEA_Input::init(AP_SerialManager::SerialProtocol prot, uint8_t prot_instance)
 {
     const AP_SerialManager& serial_manager = AP::serialmanager();
-    uart = serial_manager.find_serial(prot, prot_instance);
-    if (uart == nullptr) {
+    auto *_uart = serial_manager.find_serial(prot, prot_instance);
+    if (_uart == nullptr) {
         return;
     }
 
-    uart->begin(serial_manager.find_baudrate(prot, prot_instance));
+    _uart->begin(serial_manager.find_baudrate(prot, prot_instance));
+
+    init(_uart);
 }
 
 void AP_NMEA_Input::update()
@@ -109,7 +111,9 @@ bool AP_NMEA_Input::decode_latest_term()
         return false;
     }
 
-    handle_term(_term_number, _term);
+    if (!handle_term(_term_number, _term)) {
+        _sentence_valid = false;
+    }
 
     return false;
 }
