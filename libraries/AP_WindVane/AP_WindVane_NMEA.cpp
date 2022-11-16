@@ -54,14 +54,10 @@ void AP_WindVane_NMEA::handle_decode_success()
 }
 
 
-void AP_WindVane_NMEA::reset_at_sentence_begin()
+bool AP_WindVane_NMEA::start_sentence_type(const char *term_type)
 {
     _wind_dir_deg = -1.0f;
     _speed_ms = -1.0f;
-}
-
-bool AP_WindVane_NMEA::start_sentence_type(const char *term_type)
-{
     // wind only:
     return strcmp(term_type, "MWV") == 0;
 }

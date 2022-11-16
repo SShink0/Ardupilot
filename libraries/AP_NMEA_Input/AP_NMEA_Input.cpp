@@ -60,7 +60,6 @@ bool AP_NMEA_Input::decode(char c)
     }
 
     case '$': // sentence begin
-        reset_at_sentence_begin();
         _sentence_valid = false;
         _nmea_input_term_number = 0;
         _term_offset = 0;

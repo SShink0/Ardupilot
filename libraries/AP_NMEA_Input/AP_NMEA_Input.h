@@ -41,8 +41,6 @@ protected:
 
     AP_NMEA_Input() {}
 
-    // called when we're just about to start parsing a sentence:
-    virtual void reset_at_sentence_begin() = 0;
     // called when the sentence type has been determined; should
     // return true if this sentence should be fully decoded
     virtual bool start_sentence_type(const char *term_type) = 0;

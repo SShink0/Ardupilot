@@ -59,7 +59,6 @@ private:
 
     // methods required to be a AP_NMEA_Input
     void handle_decode_success() override;
-    void reset_at_sentence_begin() override {};
     bool start_sentence_type(const char *term_type) override;
     bool handle_term(uint8_t term_number, const char *term) override;
 
