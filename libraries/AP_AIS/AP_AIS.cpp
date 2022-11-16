@@ -769,6 +769,11 @@ void AP_AIS::send(mavlink_channel_t chan) {};
 
 AP_AIS *AP_AIS::get_singleton() { return nullptr; }
 
+void AP_AIS::handle_decode_success() override {}
+void AP_AIS::reset_at_sentence_begin() override {};
+bool AP_AIS::start_sentence_type(const char *term_type) override { return false; }
+bool AP_AIS::handle_term(uint8_t term_number, const char *term) override { return false; }
+
 #endif // AP_AIS_DUMMY_METHODS_ENABLED
 
 AP_AIS *AP_AIS::_singleton;
