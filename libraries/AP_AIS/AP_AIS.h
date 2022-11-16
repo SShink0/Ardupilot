@@ -28,7 +28,9 @@
 #define AIVDM_BUFFER_SIZE 10
 #define AIVDM_PAYLOAD_SIZE 65
 
-class AP_AIS
+#include <AP_NMEA_Input/AP_NMEA_Input.h>
+
+class AP_AIS : AP_NMEA_Input
 {
 public:
     AP_AIS();
@@ -54,6 +56,12 @@ public:
     static const struct AP_Param::GroupInfo var_info[];
 
 private:
+
+    // methods required to be a AP_NMEA_Input
+    void handle_decode_success() override;
+    void reset_at_sentence_begin() override {};
+    bool start_sentence_type(const char *term_type) override;
+    bool handle_term(uint8_t term_number, const char *term) override;
 
     // parameters
     AP_Int8 _type;             // type of AIS receiver
@@ -124,15 +132,6 @@ private:
 
     // decode each term
     bool decode_latest_term() WARN_IF_UNUSED;
-
-    // varables for decoding NMEA sentence
-    char _term[AIVDM_PAYLOAD_SIZE]; // buffer for the current term within the current sentence
-    uint8_t _term_offset;           // offset within the _term buffer where the next character should be placed
-    uint8_t _term_number;           // term index within the current sentence
-    uint8_t _checksum;              // checksum accumulator
-    bool _term_is_checksum;         // current term is the checksum
-    bool _sentence_valid;           // is current sentence valid so far
-    bool _sentence_done;            // true if this sentence has already been decoded
 
     static AP_AIS *_singleton;
 };

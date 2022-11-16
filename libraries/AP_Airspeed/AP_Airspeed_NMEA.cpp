@@ -108,8 +108,6 @@ bool AP_Airspeed_NMEA::start_sentence_type(const char *term_type)
     return false;
 }
 
-// decode the most recently consumed term
-// returns true if new sentence has just passed checksum test and is validated
 bool AP_Airspeed_NMEA::handle_term(uint8_t _term_number, const char *_term)
 {
     if (_current_sentence_type == sentence_mtw) {
