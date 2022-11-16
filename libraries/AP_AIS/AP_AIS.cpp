@@ -770,7 +770,6 @@ void AP_AIS::send(mavlink_channel_t chan) {};
 AP_AIS *AP_AIS::get_singleton() { return nullptr; }
 
 void AP_AIS::handle_decode_success() {}
-void AP_AIS::reset_at_sentence_begin() {};
 bool AP_AIS::start_sentence_type(const char *term_type) { return false; }
 bool AP_AIS::handle_term(uint8_t term_number, const char *term) { return false; }
 
