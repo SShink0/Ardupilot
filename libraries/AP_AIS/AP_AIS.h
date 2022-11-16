@@ -98,8 +98,6 @@ private:
     // list of the vessels that are being tracked
     AP_ExpandingArray<ais_vehicle_t> _list {8};
 
-    AP_HAL::UARTDriver *_uart;
-
     uint16_t _send_index; // index of the last vessel send over mavlink
 
     // removed the given index from the AIVDM buffer shift following elements
@@ -126,12 +124,6 @@ private:
 
     // log a raw AIVDM message
     void log_raw(const AIVDM *msg);
-
-    // try and decode NMEA message
-    bool decode(char c) WARN_IF_UNUSED;
-
-    // decode each term
-    bool decode_latest_term() WARN_IF_UNUSED;
 
     static AP_AIS *_singleton;
 };
