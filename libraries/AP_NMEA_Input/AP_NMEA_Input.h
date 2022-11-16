@@ -35,7 +35,7 @@ public:
     void update();
 
     void init(AP_SerialManager::SerialProtocol prot, uint8_t prot_instance);
-    void init(AP_HAL::UARTDriver _uart) { uart = _uart; }
+    void init(AP_HAL::UARTDriver *_uart) { nmea_input_uart = _uart; }
 
 protected:
 
@@ -57,7 +57,7 @@ protected:
 private:
 
     // pointer to serial uart
-    AP_HAL::UARTDriver *uart = nullptr;
+    AP_HAL::UARTDriver *nmea_input_uart = nullptr;
 
     // try and decode NMEA message
     bool decode(char c);
@@ -68,9 +68,9 @@ private:
     // convert from char to hex value for checksum
     int16_t char_to_hex(char a);
 
-    char _term[15];            // buffer for the current term within the current sentence
+    char _nmea_input_term[15];            // buffer for the current term within the current sentence
     uint8_t _term_offset;      // offset within the _term buffer where the next character should be placed
-    uint8_t _term_number;      // term index within the current sentence
+    uint8_t _nmea_input_term_number;      // term index within the current sentence
     uint8_t _checksum;         // checksum accumulator
     bool _term_is_checksum;    // current term is the checksum
     bool _sentence_valid;      // is current sentence valid so far

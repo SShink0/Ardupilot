@@ -22,7 +22,7 @@
 #include "AP_RangeFinder.h"
 #include "AP_RangeFinder_Backend_Serial.h"
 
-class AP_RangeFinder_NMEA : public AP_RangeFinder_Backend_Serial
+class AP_RangeFinder_NMEA : public AP_RangeFinder_Backend_Serial, AP_NMEA_Input
 {
 
 public:
@@ -43,7 +43,7 @@ protected:
 
     // methods required to be a AP_NMEA_Input
     void handle_decode_success() override;
-    void reset_at_sentence_begin() override;
+    void reset_at_sentence_begin() override {};
     bool start_sentence_type(const char *term_type) override;
     bool handle_term(uint8_t term_number, const char *term) override;
 
@@ -51,10 +51,10 @@ private:
 
     using AP_RangeFinder_Backend_Serial::AP_RangeFinder_Backend_Serial;
 
-    static char *sentence_dbt = "DBT";
-    static const char *sentence_dpt = "DPT";
-    static const char *sentence_mtw = "MTW";
-    static const char *sentence_hded = "HDED";
+    const char *sentence_dbt = "DBT";
+    const char *sentence_dpt = "DPT";
+    const char *sentence_mtw = "MTW";
+    const char *sentence_hded = "HDED";
 
     // get a distance reading
     bool get_reading(float &reading_m) override;
@@ -77,3 +77,4 @@ private:
 };
 
 #endif  // AP_RANGEFINDER_NMEA_ENABLED
+ 

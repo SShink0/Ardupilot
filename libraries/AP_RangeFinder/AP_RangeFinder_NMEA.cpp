@@ -55,14 +55,14 @@ bool AP_RangeFinder_NMEA::get_temp(float &temp) const
     return true;
 }
 
-bool AP_WindVane_NMEA::start_sentence_type(const char *term_type)
+bool AP_RangeFinder_NMEA::start_sentence_type(const char *term_type)
 {
-    static const char *valid_sentences = [
-        "DBT",
-        "DPT",
-        "MTW",
-        "ED"
-        ];
+    const char *valid_sentences[] {
+        sentence_dbt,
+        sentence_dpt,
+        sentence_mtw,
+        sentence_hded,
+    };
     for (auto valid_sentence : valid_sentences) {
         if (strcmp(term_type, valid_sentence)) {
             _current_sentence_type = valid_sentence;
@@ -78,26 +78,22 @@ bool AP_WindVane_NMEA::start_sentence_type(const char *term_type)
 // returns true if new distance sentence has just passed checksum test and is validated
 bool AP_RangeFinder_NMEA::handle_term(uint8_t _term_number, const char *_term)
 {
-    switch (_current_sentence_type) {
-    case sentence_dbt:
+    if (_current_sentence_type == sentence_dbt) {
         // parse DBT messages
         if (_term_number == 3) {
             _distance_m = strtof(_term, NULL);
         }
-        break;
-    case sentence_dpt:
+    } else if (_current_sentence_type == sentence_dpt) {
         // parse DPT messages
         if (_term_number == 1) {
             _distance_m = strtof(_term, NULL);
         }
-        break;
-    case sentence_mtw:
+    } else if (_current_sentence_type == sentence_mtw) {
         // parse MTW (mean water temperature) messages
         if (_term_number == 1) {
             _temp_unvalidated = strtof(_term, NULL);
         }
-        break;
-    case sentence_hded:
+    } else if (_current_sentence_type == sentence_hded) {
         // parse HDED (Hondex custom message)
         if (_term_number == 4) {
             _distance_m = strtof(_term, NULL);
@@ -107,7 +103,7 @@ bool AP_RangeFinder_NMEA::handle_term(uint8_t _term_number, const char *_term)
     return true;
 }
 
-void AP_WindVane_NMEA::handle_decode_success()
+void AP_RangeFinder_NMEA::handle_decode_success()
 {
     if (_distance_m > 0) {
         sum += _distance_m;
