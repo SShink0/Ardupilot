@@ -42,9 +42,6 @@ protected:
     bool start_sentence_type(const char *term_type) override;
     bool handle_term(uint8_t term_number, const char *term) override;
 
-    // decode each term
-    bool decode_latest_term();
-
 private:
 
     // latest values read in
