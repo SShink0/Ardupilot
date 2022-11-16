@@ -91,12 +91,7 @@ void AP_AIS::init()
         return;
     }
 
-    _uart = AP::serialmanager().find_serial(AP_SerialManager::SerialProtocol_AIS, 0);
-    if (_uart == nullptr) {
-        return;
-    }
-
-    _uart->begin(AP::serialmanager().find_baudrate(AP_SerialManager::SerialProtocol_AIS, 0));
+    AP_NMEA_Input::init(AP_SerialManager::SerialProtocol_AIS, 0);
 }
 
 // update AIS, expected to be called at 20hz
