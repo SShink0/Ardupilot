@@ -56,6 +56,7 @@
 #include <AP_Frsky_Telem/AP_Frsky_Telem.h>
 #include <RC_Channel/RC_Channel.h>
 #include <AP_VisualOdom/AP_VisualOdom.h>
+#include <AP_Terrain/AP_Terrain.h>
 
 #include "MissionItemProtocol_Waypoints.h"
 #include "MissionItemProtocol_Rally.h"
@@ -3761,6 +3762,17 @@ void GCS_MAVLINK::handle_common_message(const mavlink_message_t &msg)
         handle_fence_message(msg);
         break;
 
+    case MAVLINK_MSG_ID_TERRAIN_DATA:
+    case MAVLINK_MSG_ID_TERRAIN_CHECK: {
+#if AP_TERRAIN_AVAILABLE
+        AP_Terrain *terrain = AP::terrain();
+        if (terrain != nullptr) {
+            terrain->handle_message(*this, msg);
+        }
+#endif
+        break;
+    }
+
 #if HAL_MOUNT_ENABLED
     case MAVLINK_MSG_ID_MOUNT_CONFIGURE: // deprecated. Use MAV_CMD_DO_MOUNT_CONFIGURE
         send_received_message_deprecation_warning("MOUNT_CONFIGURE");
@@ -5487,6 +5499,16 @@ bool GCS_MAVLINK::try_send_message(const enum ap_message id)
         break;
 #endif
 
+    case MSG_TERRAIN: {
+#if AP_TERRAIN_AVAILABLE
+        CHECK_PAYLOAD_SIZE(TERRAIN_REQUEST);
+        AP_Terrain *terrain = AP::terrain();
+        if (terrain != nullptr) {
+            terrain->send_request(*this);
+        }
+#endif
+        break;
+    }
     case MSG_EKF_STATUS_REPORT:
         CHECK_PAYLOAD_SIZE(EKF_STATUS_REPORT);
         AP::ahrs().send_ekf_status_report(*this);
