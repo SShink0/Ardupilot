@@ -157,7 +157,7 @@ public:
 
     // ublox specific healthy checks
     bool is_healthy(void) const override;
-    
+    bool supports_mavlink_gps_rtk_message() const override { return true; }
 private:
     // u-blox UBX protocol essentials
     struct PACKED ubx_header {
