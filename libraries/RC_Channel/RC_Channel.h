@@ -6,6 +6,7 @@
 #include <AP_Param/AP_Param.h>
 #include <AP_Math/AP_Math.h>
 #include <AP_Common/Bitmask.h>
+#include <GCS_MAVLink/GCS.h>
 
 #ifndef AP_RC_CHANNEL_AUX_FUNCTION_STRINGS_ENABLED
 #define AP_RC_CHANNEL_AUX_FUNCTION_STRINGS_ENABLED 1
@@ -359,6 +360,12 @@ private:
 
     // pwm is stored here
     int16_t     radio_in;
+    // previous rc in, used to ignore small changes in radio_input_changed()
+    int16_t     prev_rc_in = -1;
+    bool rc_in_changed;
+
+    // return true if rc input value has changed by more than the deadzone
+    bool radio_input_changed(uint16_t rc_in);
 
     // value generated from PWM normalised to configured scale
     int16_t    control_in;
@@ -626,6 +633,7 @@ protected:
         MULTI_RECEIVER_SUPPORT  = (1U << 10), // allow multiple receivers
         USE_CRSF_LQ_AS_RSSI     = (1U << 11), // returns CRSF link quality as RSSI value, instead of RSSI
         CRSF_FM_DISARM_STAR     = (1U << 12), // when disarmed, add a star at the end of the flight mode in CRSF telemetry
+        CLEAR_OVERRIDES_BY_RC   = (1U << 13), // clear MAVLink overrides if the pilot inputs any of roll/pitch/throttle/yaw
     };
 
     void new_override_received() {
@@ -664,6 +672,10 @@ private:
 
     void set_aux_cached(RC_Channel::aux_func_t aux_fn, RC_Channel::AuxSwitchPos pos);
 #endif
+
+    bool clear_overrides_by_rc(void) const {
+        return _options & uint32_t(Option::CLEAR_OVERRIDES_BY_RC);
+    }
 };
 
 RC_Channels &rc();

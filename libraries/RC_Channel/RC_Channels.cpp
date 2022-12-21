@@ -28,6 +28,7 @@ extern const AP_HAL::HAL& hal;
 #include <AP_Logger/AP_Logger.h>
 
 #include "RC_Channel.h"
+#include <AP_RCMapper/AP_RCMapper.h>
 
 /*
   channels group object constructor
@@ -81,6 +82,20 @@ bool RC_Channels::read_input(void)
     bool success = false;
     for (uint8_t i=0; i<NUM_RC_CHANNELS; i++) {
         success |= channel(i)->update();
+    }
+
+    // check if clear overrides by RC is allowed by RC_OPTIONS and any change in RC input during RC overrides
+    if (rc().clear_overrides_by_rc() && has_active_overrides() &&
+        (channel(AP::rcmap()->roll() - 1)->rc_in_changed ||
+        channel(AP::rcmap()->pitch() - 1)->rc_in_changed ||
+        channel(AP::rcmap()->throttle() - 1)->rc_in_changed ||
+        channel(AP::rcmap()->yaw() - 1)->rc_in_changed)) {
+        // clear RC overrides
+        set_gcs_overrides_enabled(false);
+        gcs().send_text(MAV_SEVERITY_NOTICE, "RC overrides cleared by pilot input");
+        if (!rc().find_channel_for_option(RC_Channel::AUX_FUNC::RC_OVERRIDE_ENABLE)) {
+            gcs().send_text(MAV_SEVERITY_INFO, "use RCx_OPTION=%d to re-enable RC overrides", (uint16_t)RC_Channel::AUX_FUNC::RC_OVERRIDE_ENABLE);
+        }
     }
 
     return success;
