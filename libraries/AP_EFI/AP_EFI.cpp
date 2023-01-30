@@ -23,6 +23,7 @@
 #include "AP_EFI_DroneCAN.h"
 #include "AP_EFI_Currawong_ECU.h"
 #include "AP_EFI_Scripting.h"
+#include "AP_EFI_Loweheiser.h"
 
 #include <AP_Logger/AP_Logger.h>
 #include <GCS_MAVLink/GCS.h>
@@ -38,7 +39,7 @@ const AP_Param::GroupInfo AP_EFI::var_info[] = {
     // @Param: _TYPE
     // @DisplayName: EFI communication type
     // @Description: What method of communication is used for EFI #1
-    // @Values: 0:None,1:Serial-MS,2:NWPMU,3:Serial-Lutan,5:DroneCAN,6:Currawong-ECU,7:Scripting
+    // @Values: 0:None,1:Serial-MS,2:NWPMU,3:Serial-Lutan,4:Loweheiser,5:DroneCAN,6:Currawong-ECU,7:Scripting
     // @User: Advanced
     // @RebootRequired: True
     AP_GROUPINFO_FLAGS("_TYPE", 1, AP_EFI, type, 0, AP_PARAM_FLAG_ENABLE),
@@ -113,6 +114,11 @@ void AP_EFI::init(void)
         backend = new AP_EFI_Scripting(*this);
 #endif
         break;
+#if AP_EFI_LOWEHEISER_ENABLED
+    case Type::LOWEHEISER:
+        backend = new AP_EFI_Loweheiser(*this);
+        break;
+#endif
     default:
         GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Unknown EFI type");
         break;
@@ -132,7 +138,10 @@ void AP_EFI::update()
 
 bool AP_EFI::is_healthy(void) const
 {
-    return (backend && (AP_HAL::millis() - state.last_updated_ms) < HEALTHY_LAST_RECEIVED_MS);
+    if (backend == nullptr) {
+        return false;
+    }
+    return backend->healthy();
 }
 
 #if HAL_LOGGING_ENABLED
@@ -247,6 +256,18 @@ void AP_EFI::send_mavlink_status(mavlink_channel_t chan)
     if (!backend) {
         return;
     }
+
+    float ignition_voltage;
+    if (isnan(state.ignition_voltage) || is_equal(state.ignition_voltage, -1.0f)) {
+        // zero means "unknown" in mavlink, 0.00001 means 0 volts:
+        ignition_voltage = 0.0; // unknown
+    } else if (is_zero(state.ignition_voltage)) {
+        // zero means "unknown" in mavlink, 0.00001 means 0 volts:
+        ignition_voltage = 0.00001;
+    } else {
+        ignition_voltage = state.ignition_voltage;
+    };
+
     mavlink_msg_efi_status_send(
         chan,
         AP_EFI::is_healthy(),
@@ -266,7 +287,7 @@ void AP_EFI::send_mavlink_status(mavlink_channel_t chan)
         KELVIN_TO_C(state.cylinder_status.exhaust_gas_temperature),
         state.throttle_out,
         state.pt_compensation,
-        state.ignition_voltage
+        ignition_voltage
         );
 }
 

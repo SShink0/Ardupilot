@@ -32,7 +32,7 @@ bool AP_BattMonitor_Generator_FuelLevel::has_current(void) const
     return has_consumed_energy();
 }
 
-// This is where we tell the battery monitor 'we have consummed energy' if we want to report a fuel level remaining
+// This is where we tell the battery monitor 'we have consumed energy' if we want to report a fuel used/remaining
 bool AP_BattMonitor_Generator_FuelLevel::has_consumed_energy(void) const
 {
     // Get pointer to generator singleton
@@ -43,17 +43,28 @@ bool AP_BattMonitor_Generator_FuelLevel::has_consumed_energy(void) const
     }
 
     // Use consumed_mAh in BattMonitor to display fuel remaining
-    return generator->has_fuel_remaining();
+    return generator->has_consumed_energy();
+}
+
+bool AP_BattMonitor_Generator_FuelLevel::reset_remaining(float percentage)
+{
+    if (!is_equal(percentage, 100.0f)) {
+        // technically we could probably support half-filling a tank
+        return false;
+    }
+
+    // Get pointer to generator singleton
+    AP_Generator *generator = AP::generator();
+
+    if (generator == nullptr) {
+        return false;
+    }
+
+    return generator->reset_consumed_energy();
 }
 
 void AP_BattMonitor_Generator_FuelLevel::init()
 {
-    // Set params for users:
-    // Fuel level is only reported as a percentage
-    _params._pack_capacity.set(100);
-    // Fuel only reports a fixed 1v, don't want batt monitor failsafes on this instance
-    _params._low_voltage.set(0);
-    _params._critical_voltage.set(0);
 }
 
 // Read the fuel level.  Should be called at 10hz
@@ -73,12 +84,25 @@ void AP_BattMonitor_Generator_FuelLevel::read()
         return;
     }
 
+    if (generator->has_fuel_remaining_pct()) {
+        // Set params for users:
+        // Fuel level is only reported as a percentage
+        _params._pack_capacity.set(100);
+        // Fuel only reports a fixed 1v, don't want batt monitor failsafes on this instance
+        _params._low_voltage.set(0);
+        _params._critical_voltage.set(0);
+    }
+
     // As this is a battery monitor instance report voltage
     // Report fixed voltage of 1V
     _state.voltage = 1.0f;
 
     // This is a bodge to display tank level as a percentage on GCS.  Users should set _params.pack_capacity == 100 to get a clear percentage in GCS
-    _state.consumed_mah = (1 - generator->get_fuel_remain()) * _params._pack_capacity.get();
+    if (generator->has_fuel_remaining_pct()) {
+        _state.consumed_mah = (1 - generator->get_fuel_remaining_pct()) * _params._pack_capacity.get();
+    } else {
+        _state.consumed_mah = generator->get_batt_consumed();
+    }
 
     // If we got this far then must be healthy
     _state.healthy = true;
