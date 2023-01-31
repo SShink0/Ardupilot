@@ -678,6 +678,12 @@ bool AP_Arming::rc_arm_checks(AP_Arming::Method method)
         check_failed(ARMING_CHECK_PARAMETERS, true, "Mode channel and RC%d_OPTION conflict", rc().flight_mode_channel_number());
         check_passed = false;
     }
+
+    // The MAVLINK command arm does not check radio input.
+    if (method == Method::GUIDED) {
+        return check_passed;
+    }
+
     const RCMapper * rcmap = AP::rcmap();
     if (rcmap != nullptr) {
         if (!rc().arming_skip_checks_rpy()) {
@@ -1779,6 +1785,7 @@ void AP_Arming::check_forced_logging(const AP_Arming::Method method)
         case Method::TOYMODELANDFORCE:
         case Method::LANDING:
         case Method::UNKNOWN:
+        case Method::GUIDED:
             AP::logger().set_long_log_persist(false);
             return;
     };
