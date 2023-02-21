@@ -17,7 +17,10 @@
 #include <AP_HAL/Semaphores.h>
 #include <AP_HAL/utility/RingBuffer.h>
 #include <AP_Math/AP_Math.h>
+#include <GCS_MAVLink/GCS_config.h>
+#if HAL_GCS_ENABLED
 #include <GCS_MAVLink/GCS_MAVLink.h>
+#endif
 
 #define TELEM_PAYLOAD_STATUS_CAPACITY          5 // size of the message buffer queue (max number of messages waiting to be sent)
 
@@ -33,8 +36,10 @@ public:
     /* Do not allow copies */
     CLASS_NO_COPY(AP_RCTelemetry);
 
+#if HAL_GCS_ENABLED
     // add statustext message to message queue
     virtual void queue_message(MAV_SEVERITY severity, const char *text);
+#endif
 
     // scheduler entry helpers
     void enable_scheduler_entry(const uint8_t slot) {
@@ -115,12 +120,14 @@ protected:
 #endif
     } _scheduler;
 
+#if HAL_GCS_ENABLED
     struct {
         HAL_Semaphore sem;
         ObjectBuffer<mavlink_statustext_t> queue{TELEM_PAYLOAD_STATUS_CAPACITY};
         mavlink_statustext_t next;
         bool available;
     } _statustext;
+#endif
 
 private:
     uint32_t check_sensor_status_timer;

@@ -18,6 +18,7 @@
 
 #if AP_FRSKY_TELEM_ENABLED
 
+#include <GCS_MAVLink/GCS_config.h>
 #include "AP_Frsky_Backend.h"
 #include "AP_Frsky_SPort.h"
 
@@ -47,12 +48,14 @@ public:
     static bool set_telem_data(const uint8_t frame,const uint16_t appid, const uint32_t data);
 #endif
 
+#if HAL_GCS_ENABLED
     void queue_message(MAV_SEVERITY severity, const char *text) {
         if (_backend == nullptr) {
             return;
         }
         return _backend->queue_text_message(severity, text);
     }
+#endif
 
 private:
 

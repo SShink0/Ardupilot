@@ -21,7 +21,10 @@
 
 #include <AP_Common/AP_Common.h>
 #include <AP_Param/AP_Param.h>
+#include <GCS_MAVLink/GCS_config.h>
+#if HAL_GCS_ENABLED
 #include <GCS_MAVLink/GCS_MAVLink.h>
+#endif
 
 #include "AP_EFI_Backend.h"
 #include "AP_EFI_State.h"
@@ -91,7 +94,9 @@ public:
     }
 
     // send EFI_STATUS
+#if HAL_GCS_ENABLED
     void send_mavlink_status(mavlink_channel_t chan);
+#endif
 
 #if AP_SCRIPTING_ENABLED
     AP_EFI_Backend* get_backend(uint8_t idx) { return idx==0?backend:nullptr; }
