@@ -100,6 +100,10 @@ public:
 #if AP_NOTIFY_NEOPIXEL_ENABLED
         Notify_LED_NeoPixelRGB              = (1 << 18), // NeoPixel AdaFruit 4544 Worldsemi WS2811
 #endif
+#if AP_NOTIFY_LM2755_ENABLED
+        Notify_LED_LM2755_I2C_External             = (1 << 19), // LM2755
+        Notify_LED_LM2755_I2C_Internal             = (1 << 20), // LM2755
+#endif
         Notify_LED_MAX
     };
 
