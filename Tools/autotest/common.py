@@ -8393,12 +8393,14 @@ Also, ignores heartbeats not from our target system'''
                                                   target_component,
                                                   next_to_request,
                                                   mission_type)
-            m = self.mav.recv_match(type='MISSION_ITEM_INT',
+            m = self.mav.recv_match(type=['MISSION_ITEM_INT', 'MISSION_ACK'],
                                     blocking=True,
                                     timeout=5,
                                     condition='MISSION_ITEM_INT.mission_type==%u' % mission_type)
             if m is None:
                 raise NotAchievedException("Did not receive MISSION_ITEM_INT")
+            if m.get_type() == 'MISSION_ACK':
+                raise NotAchievedException("Received unexpected mission ack: %s" % self.dump_message_verbose(m))
             if m.target_system != self.mav.source_system:
                 raise NotAchievedException("Wrong target system (want=%u got=%u)" %
                                            (self.mav.source_system, m.target_system))
