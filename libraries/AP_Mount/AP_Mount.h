@@ -181,8 +181,19 @@ public:
     // handling of set_roi_sysid message
     MAV_RESULT handle_command_do_set_roi_sysid(const mavlink_command_int_t &packet);
 
+#if AP_MOUNT_ROI_WPNEXT_OFFSET_ENABLED
+    // handling of set_roi_wpnext_offset message
+    MAV_RESULT handle_command_do_set_roi_wpnext_offset(const mavlink_command_int_t &packet);
+#endif
+
     // handling of set_roi_none message
     MAV_RESULT handle_command_do_set_roi_none();
+
+#if AP_MOUNT_ROI_WPNEXT_OFFSET_ENABLED
+    // point at next waypoint, with attitude offsets:
+    void set_roi_target_wpnext_offset(const Vector3f &rpy) { set_roi_target_wpnext_offset(_primary, rpy); }
+    void set_roi_target_wpnext_offset(uint8_t instance, const Vector3f &rpy);
+#endif
 
     // mavlink message handling:
     MAV_RESULT handle_command(const mavlink_command_int_t &packet, const mavlink_message_t &msg);
