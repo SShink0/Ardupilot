@@ -18,7 +18,7 @@
 #if HAL_PROXIMITY_ENABLED
 #include "AP_Proximity_RPLidarA2.h"
 #include "AP_Proximity_TeraRangerTower.h"
-#include "AP_Proximity_TeraRangerTowerEvo.h"
+#include "AP_Proximity_TeraRangerHub.h"
 #include "AP_Proximity_RangeFinder.h"
 #include "AP_Proximity_MAV.h"
 #include "AP_Proximity_LightWareSF40C.h"
@@ -145,9 +145,9 @@ void AP_Proximity::init()
             }
             break;
         case Type::TRTOWEREVO:
-            if (AP_Proximity_TeraRangerTowerEvo::detect(serial_instance)) {
+            if (AP_Proximity_TeraRangerHub::detect(serial_instance)) {
                 state[instance].instance = instance;
-                drivers[instance] = new AP_Proximity_TeraRangerTowerEvo(*this, state[instance], params[instance], serial_instance);
+                drivers[instance] = new AP_Proximity_TeraRangerHub(*this, state[instance], params[instance], serial_instance);
                 serial_instance++;
             }
             break;
