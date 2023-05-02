@@ -39,3 +39,7 @@
 	path = modules/Micro-CDR
 	url = https://github.com/ardupilot/Micro-CDR.git
 	branch = master
+[submodule "modules/trusted_flight"]
+	path = modules/trusted_flight
+	url = https://github.com/GlitchedPolygons/l8w8jwt.git
+
