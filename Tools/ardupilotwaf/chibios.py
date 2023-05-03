@@ -61,10 +61,11 @@ class upload_fw(Task.Task):
         if 'AP_OVERRIDE_UPLOAD_CMD' in os.environ:
             cmd = "{} '{}'".format(os.environ['AP_OVERRIDE_UPLOAD_CMD'], src.abspath())
         elif "microsoft-standard-WSL2" in platform.release():
-            if not self.wsl2_prereq_checks():
+            python_exe = self.wsl2_prereq_checks()
+            if not python_exe:
                 return
             print("If this takes takes too long here, try power-cycling your hardware\n")
-            cmd = "{} '{}/uploader.py' '{}'".format('python.exe', upload_tools, src.abspath())
+            cmd = "{} '{}/uploader.py' '{}'".format(python_exe, upload_tools, src.abspath())
         else:
             cmd = "{} '{}/uploader.py' '{}'".format(self.env.get_flat('PYTHON'), upload_tools, src.abspath())
         if upload_port is not None:
@@ -87,19 +88,42 @@ class upload_fw(Task.Task):
         # 7) doing steps 3 and 4 will most likely take several seconds and in many cases the bootloader has
         #        moved on into the app
         #
-        # Solution: simply call "python.exe" instead of 'python' which magically calls it from the windows
+        # Solution: simply call "python.exe" instead of 'python' which magically calls it from the Windows
         #   system using the same absolute path back into the WSL2's user's directory
-        # Requirements: Windows must have Python3.9.x (NTO 3.10.x) installed and a few packages.
+        # Requirements: Windows must have >= Python3.9.x and module pyserial.
         import subprocess
         try:
+            # raise subprocess.CalledProcessError(1, "foo")
             where_python = subprocess.check_output('where.exe python.exe', shell=True, text=True)
         except subprocess.CalledProcessError:
-            #if where.exe can't find the file it returns a non-zero result which throws this exception
+            # if where.exe can't find the file it returns a non-zero result which throws this exception
             where_python = ""
-        if not where_python or not "\Python\Python" in where_python or "python.exe" not in where_python:
+        print(flush = True)
+        print("WSL2 detected. Checking for Windows Host python version >= 3.9.0")
+        if len(where_python) == 0 or "python.exe" not in where_python:
             print(self.get_full_wsl2_error_msg("Windows python.exe not found"))
-            return False
-        return True
+            return None
+        # skip versions installed through the windows app store
+        use_this_path = ""
+        use_this_path_version = ""
+        available_versions = [found_version for found_version in where_python.split() if "/AppData/Local/Microsoft/WindowsApps/" not in found_version]
+        for test_version in available_versions:
+            drive_letter = test_version.split("\\")[0][0].lower()
+            corrected_path = "/" + os.path.join("mnt", drive_letter, *test_version.split("\\")[1:])
+            try:
+                python_version = subprocess.check_output(corrected_path + " --version", shell=True, text=True).strip()
+                print("Found Windows %s" % python_version)
+                if len(use_this_path_version) == 0:
+                    use_this_path_version = python_version
+                    use_this_path = corrected_path
+            except subprocess.CalledProcessError:
+                python_version = ""
+        if len(use_this_path_version) > 0:
+            print("If you get the error \"ModuleNotFoundError: No module named 'serial'\" install it by running: python.exe -m pip install pyserial")
+            print("Accessing serial port using Windows %s at:\n%s\n" % (use_this_path_version, use_this_path))
+            return use_this_path
+        print(self.get_full_wsl2_error_msg("Your Windows %s version is not compatible" % python_version.strip()))
+        return None
 
     def get_full_wsl2_error_msg(self, error_msg):
         return ("""
@@ -108,11 +132,11 @@ class upload_fw(Task.Task):
         WSL2 firmware uploads use the host's Windows Python.exe so it has access to the COM ports.
 
         %s
-        Please download Windows Installer 3.9.x (not 3.10) from https://www.python.org/downloads/
+        Please download the latest Windows Installer (anything >= 3.9.0) from https://www.python.org/downloads/
         and make sure to add it to your path during the installation. Once installed, run this
-        command in Powershell or Command Prompt to install some packages:
-        
-        pip.exe install empy pyserial
+        command in Powershell, Command Prompt, or WSL to install additional package(s):
+
+        python.exe -m pip install pyserial
         ****************************************
         ****************************************
         """ % error_msg)
