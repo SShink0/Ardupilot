@@ -24,6 +24,7 @@ void AP_AHRS_External::get_results(AP_AHRS_Backend::Estimates &results)
 {
     Quaternion quat;
     if (!AP::externalAHRS().get_quaternion(quat)) {
+        results.attitude_valid = false;
         return;
     }
     quat.rotation_matrix(results.dcm_matrix);
