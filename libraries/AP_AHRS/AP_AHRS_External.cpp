@@ -24,11 +24,13 @@ void AP_AHRS_External::get_results(AP_AHRS_Backend::Estimates &results)
 {
     Quaternion quat;
     if (!AP::externalAHRS().get_quaternion(quat)) {
+        results.attitude_valid = false;
         return;
     }
     quat.rotation_matrix(results.dcm_matrix);
     results.dcm_matrix = results.dcm_matrix * AP::ahrs().get_rotation_vehicle_body_to_autopilot_body();
     results.dcm_matrix.to_euler(&results.roll_rad, &results.pitch_rad, &results.yaw_rad);
+    results.attitude_valid = true;
 
     results.gyro_drift.zero();
     results.gyro_estimate = AP::externalAHRS().get_gyro();
