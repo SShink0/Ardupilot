@@ -155,6 +155,9 @@ void Plane::init_ardupilot()
 #if AP_GRIPPER_ENABLED
     g2.gripper.init();
 #endif
+
+    //Code added by Cole, initialize AS5600 sensor
+    aoa_sensor.init();
 }
 
 //********************************************************************************
