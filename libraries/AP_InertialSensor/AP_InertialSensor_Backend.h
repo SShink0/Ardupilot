@@ -121,6 +121,10 @@ public:
         DEVTYPE_INS_ICM40605 = 0x36,
         DEVTYPE_INS_IIM42652 = 0x37,
         DEVTYPE_BMI270       = 0x38,
+        DEVTYPE_INS_BMI085   = 0x39,
+        DEVTYPE_INS_ICM42670 = 0x3A,
+        DEVTYPE_INS_ICM45686 = 0x3B,
+        DEVTYPE_INS_SCHA63T  = 0x3C,
     };
 
 protected:
@@ -137,7 +141,11 @@ protected:
     void _rotate_and_correct_gyro(uint8_t instance, Vector3f &gyro) __RAMFUNC__;
 
     // rotate gyro vector, offset and publish
-    void _publish_gyro(uint8_t instance, const Vector3f &gyro); /* front end */
+    void _publish_gyro(uint8_t instance, const Vector3f &gyro) __RAMFUNC__; /* front end */
+
+    // apply notch and lowpass gyro filters and sample for FFT
+    void apply_gyro_filters(const uint8_t instance, const Vector3f &gyro);
+    void save_gyro_window(const uint8_t instance, const Vector3f &gyro, uint8_t phase);
 
     // this should be called every time a new gyro raw sample is
     // available - be it published or not the sample is raw in the
@@ -151,7 +159,7 @@ protected:
     void _notify_new_delta_angle(uint8_t instance, const Vector3f &dangle);
     
     // rotate accel vector, scale, offset and publish
-    void _publish_accel(uint8_t instance, const Vector3f &accel); /* front end */
+    void _publish_accel(uint8_t instance, const Vector3f &accel) __RAMFUNC__; /* front end */
 
     // this should be called every time a new accel raw sample is available -
     // be it published or not
@@ -200,7 +208,7 @@ protected:
     void _update_sensor_rate(uint16_t &count, uint32_t &start_us, float &rate_hz) const __RAMFUNC__;
 
     // return true if the sensors are still converging and sampling rates could change significantly
-    bool sensors_converging() const { return AP_HAL::millis() < 30000; }
+    bool sensors_converging() const { return AP_HAL::millis() < HAL_INS_CONVERGANCE_MS; }
 
     // set accelerometer max absolute offset for calibration
     void _set_accel_max_abs_offset(uint8_t instance, float offset);
@@ -230,12 +238,6 @@ protected:
     // publish a temperature value
     void _publish_temperature(uint8_t instance, float temperature); /* front end */
 
-    // set accelerometer error_count
-    void _set_accel_error_count(uint8_t instance, uint32_t error_count);
-
-    // set gyro error_count
-    void _set_gyro_error_count(uint8_t instance, uint32_t error_count);
-
     // increment accelerometer error_count
     void _inc_accel_error_count(uint8_t instance) __RAMFUNC__;
 
@@ -257,51 +259,15 @@ protected:
         return (uint16_t)_imu._loop_rate;
     }
 
-    // return the notch filter center in Hz for the sample rate
-    float _gyro_notch_center_freq_hz(void) const { return _imu._notch_filter.center_freq_hz(); }
-
-    // return the notch filter bandwidth in Hz for the sample rate
-    float _gyro_notch_bandwidth_hz(void) const { return _imu._notch_filter.bandwidth_hz(); }
-
-    // return the notch filter attenuation in dB for the sample rate
-    float _gyro_notch_attenuation_dB(void) const { return _imu._notch_filter.attenuation_dB(); }
-
-    bool _gyro_notch_enabled(void) const { return _imu._notch_filter.enabled(); }
-
-    // return the harmonic notch filter center in Hz for the sample rate
-    float gyro_harmonic_notch_center_freq_hz() const { return _imu.get_gyro_dynamic_notch_center_freq_hz(); }
-
-    // set of harmonic notch current center frequencies
-    const float* gyro_harmonic_notch_center_frequencies_hz(void) const { return _imu.get_gyro_dynamic_notch_center_frequencies_hz(); }
-
-    // number of harmonic notch current center frequencies
-    uint8_t num_gyro_harmonic_notch_center_frequencies(void) const { return _imu.get_num_gyro_dynamic_notch_center_frequencies(); }
-
-    // return the harmonic notch filter bandwidth in Hz for the sample rate
-    float gyro_harmonic_notch_bandwidth_hz(void) const { return _imu._harmonic_notch_filter.bandwidth_hz(); }
-
-    // return the harmonic notch filter attenuation in dB for the sample rate
-    float gyro_harmonic_notch_attenuation_dB(void) const { return _imu._harmonic_notch_filter.attenuation_dB(); }
-
-    bool gyro_harmonic_notch_enabled(void) const { return _imu._harmonic_notch_filter.enabled(); }
-
     // common gyro update function for all backends
-    void update_gyro(uint8_t instance); /* front end */
+    void update_gyro(uint8_t instance) __RAMFUNC__; /* front end */
 
     // common accel update function for all backends
-    void update_accel(uint8_t instance); /* front end */
+    void update_accel(uint8_t instance) __RAMFUNC__; /* front end */
 
     // support for updating filter at runtime
     uint16_t _last_accel_filter_hz;
     uint16_t _last_gyro_filter_hz;
-    float _last_notch_center_freq_hz;
-    float _last_notch_bandwidth_hz;
-    float _last_notch_attenuation_dB;
-
-    // support for updating harmonic filter at runtime
-    float _last_harmonic_notch_center_freq_hz;
-    float _last_harmonic_notch_bandwidth_hz;
-    float _last_harmonic_notch_attenuation_dB;
 
     void set_gyro_orientation(uint8_t instance, enum Rotation rotation) {
         _imu._gyro_orientation[instance] = rotation;
@@ -323,7 +289,7 @@ protected:
     }
 
     // if fast sampling is enabled, the rate to use in kHz
-    uint8_t get_fast_sampling_rate() {
+    uint8_t get_fast_sampling_rate() const {
         return (1 << uint8_t(_imu._fast_sampling_rate));
     }
 

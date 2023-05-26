@@ -19,6 +19,9 @@ public:
 class AP_HAL::PWMSource {
 public:
 
+    // Destructor detaches interrupt
+    ~PWMSource();
+
     bool set_pin(int16_t new_pin, const char *subsystem);
     int16_t pin() const { return _pin; }  // returns pin this is attached to
 
@@ -54,6 +57,10 @@ public:
     virtual void    write(uint8_t pin, uint8_t value) = 0;
     virtual void    toggle(uint8_t pin) = 0;
     virtual bool    valid_pin(uint8_t pin) const { return true; }
+
+    // return servo channel associated with GPIO pin.  Returns true on success and fills in servo_ch argument
+    // servo_ch uses zero-based indexing
+    virtual bool    pin_to_servo_channel(uint8_t pin, uint8_t& servo_ch) const { return false; }
 
     // allow for save and restore of pin settings
     virtual bool    get_mode(uint8_t pin, uint32_t &mode) { return false; }
@@ -106,4 +113,8 @@ public:
 
     // optional timer tick
     virtual void timer_tick(void) {};
+
+    // Run arming checks
+    virtual bool arming_checks(size_t buflen, char *buffer) const { return true; }
+
 };

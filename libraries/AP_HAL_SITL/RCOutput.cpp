@@ -88,25 +88,21 @@ void RCOutput::push(void)
         _corked = false;
     }
 
-    // do not overwrite FETTec simulation's ESC telemetry data:
     SITL::SIM *sitl = AP::sitl();
-    if (sitl != nullptr &&
-        sitl->fetteconewireesc_sim.enabled()) {
-        return;
-    }
-
-    if (esc_telem == nullptr) {
-        esc_telem = new AP_ESC_Telem_SITL;
-    }
-    if (esc_telem != nullptr) {
-        esc_telem->update();
+    if (sitl && sitl->esc_telem) {
+        if (esc_telem == nullptr) {
+            esc_telem = new AP_ESC_Telem_SITL;
+        }
+        if (esc_telem != nullptr) {
+            esc_telem->update();
+        }
     }
 }
 
 /*
   Serial LED emulation
 */
-bool RCOutput::set_serial_led_num_LEDs(const uint16_t chan, uint8_t num_leds, output_mode mode, uint16_t clock_mask)
+bool RCOutput::set_serial_led_num_LEDs(const uint16_t chan, uint8_t num_leds, output_mode mode, uint32_t clock_mask)
 {
     if (chan > 15 || num_leds > 64) {
         return false;

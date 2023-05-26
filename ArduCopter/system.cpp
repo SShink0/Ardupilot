@@ -27,16 +27,12 @@ void Copter::init_ardupilot()
 #endif
 
     // init cargo gripper
-#if GRIPPER_ENABLED == ENABLED
+#if AP_GRIPPER_ENABLED
     g2.gripper.init();
 #endif
 
-#if AC_FENCE == ENABLED
-    fence.init();
-#endif
-
     // init winch
-#if WINCH_ENABLED == ENABLED
+#if AP_WINCH_ENABLED
     g2.winch.init();
 #endif
 
@@ -77,7 +73,7 @@ void Copter::init_ardupilot()
     init_rc_in();               // sets up rc channels from radio
 
     // initialise surface to be tracked in SurfaceTracking
-    // must be before rc init to not override inital switch position
+    // must be before rc init to not override initial switch position
     surface_tracking.init((SurfaceTracking::Surface)copter.g2.surftrak_mode.get());
 
     // allocate the motors class
@@ -131,12 +127,17 @@ void Copter::init_ardupilot()
     camera_mount.init();
 #endif
 
-#if PRECISION_LANDING == ENABLED
+#if AP_CAMERA_ENABLED
+    // initialise camera
+    camera.init();
+#endif
+
+#if AC_PRECLAND_ENABLED
     // initialise precision landing
     init_precland();
 #endif
 
-#if LANDING_GEAR_ENABLED == ENABLED
+#if AP_LANDINGGEAR_ENABLED
     // initialise landing gear position
     landinggear.init();
 #endif
@@ -158,12 +159,12 @@ void Copter::init_ardupilot()
     g2.proximity.init();
 #endif
 
-#if BEACON_ENABLED == ENABLED
+#if AP_BEACON_ENABLED
     // init beacons used for non-gps position estimation
     g2.beacon.init();
 #endif
 
-#if RPM_ENABLED == ENABLED
+#if AP_RPM_ENABLED
     // initialise AP_RPM library
     rpm_sensor.init();
 #endif
@@ -187,6 +188,10 @@ void Copter::init_ardupilot()
     g2.scripting.init();
 #endif // AP_SCRIPTING_ENABLED
 
+#if AC_CUSTOMCONTROL_MULTI_ENABLED == ENABLED
+    custom_control.init();
+#endif
+
     // set landed flags
     set_land_complete(true);
     set_land_complete_maybe(true);
@@ -201,10 +206,7 @@ void Copter::init_ardupilot()
 
     ins.set_log_raw_bit(MASK_LOG_IMU_RAW);
 
-    // enable output to motors
-    if (arming.rc_calibration_checks(true)) {
-        enable_motor_output();
-    }
+    motors->output_min();  // output lowest possible value to motors
 
     // attempt to set the intial_mode, else set to STABILIZE
     if (!set_mode((enum Mode::Number)g.initial_mode.get(), ModeReason::INITIALISED)) {
@@ -231,78 +233,6 @@ void Copter::startup_INS_ground()
 
     // reset ahrs including gyro bias
     ahrs.reset();
-}
-
-// update the harmonic notch filter center frequency dynamically
-void Copter::update_dynamic_notch()
-{
-    if (!ins.gyro_harmonic_notch_enabled()) {
-        return;
-    }
-    const float ref_freq = ins.get_gyro_harmonic_notch_center_freq_hz();
-    const float ref = ins.get_gyro_harmonic_notch_reference();
-    if (is_zero(ref)) {
-        ins.update_harmonic_notch_freq_hz(ref_freq);
-        return;
-    }
-
-    const float throttle_freq = ref_freq * MAX(1.0f, sqrtf(motors->get_throttle_out() / ref));
-
-    switch (ins.get_gyro_harmonic_notch_tracking_mode()) {
-        case HarmonicNotchDynamicMode::UpdateThrottle: // throttle based tracking
-            // set the harmonic notch filter frequency approximately scaled on motor rpm implied by throttle
-            ins.update_harmonic_notch_freq_hz(throttle_freq);
-            break;
-
-#if RPM_ENABLED == ENABLED
-        case HarmonicNotchDynamicMode::UpdateRPM: // rpm sensor based tracking
-            float rpm;
-            if (rpm_sensor.get_rpm(0, rpm)) {
-                // set the harmonic notch filter frequency from the main rotor rpm
-                ins.update_harmonic_notch_freq_hz(MAX(ref_freq, rpm * ref / 60.0f));
-            } else {
-                ins.update_harmonic_notch_freq_hz(ref_freq);
-            }
-            break;
-#endif
-#if HAL_WITH_ESC_TELEM
-        case HarmonicNotchDynamicMode::UpdateBLHeli: // BLHeli based tracking
-            // set the harmonic notch filter frequency scaled on measured frequency
-            if (ins.has_harmonic_option(HarmonicNotchFilterParams::Options::DynamicHarmonic)) {
-                float notches[INS_MAX_NOTCHES];
-                const uint8_t num_notches = AP::esc_telem().get_motor_frequencies_hz(ins.get_num_gyro_dynamic_notches(), notches);
-
-                for (uint8_t i = 0; i < num_notches; i++) {
-                    notches[i] =  MAX(ref_freq, notches[i]);
-                }
-                if (num_notches > 0) {
-                    ins.update_harmonic_notch_frequencies_hz(num_notches, notches);
-                } else {    // throttle fallback
-                    ins.update_harmonic_notch_freq_hz(throttle_freq);
-                }
-            } else {
-                ins.update_harmonic_notch_freq_hz(MAX(ref_freq, AP::esc_telem().get_average_motor_frequency_hz() * ref));
-            }
-            break;
-#endif
-#if HAL_GYROFFT_ENABLED
-        case HarmonicNotchDynamicMode::UpdateGyroFFT: // FFT based tracking
-            // set the harmonic notch filter frequency scaled on measured frequency
-            if (ins.has_harmonic_option(HarmonicNotchFilterParams::Options::DynamicHarmonic)) {
-                float notches[INS_MAX_NOTCHES];
-                const uint8_t peaks = gyro_fft.get_weighted_noise_center_frequencies_hz(ins.get_num_gyro_dynamic_notches(), notches);
-
-                ins.update_harmonic_notch_frequencies_hz(peaks, notches);
-            } else {
-                ins.update_harmonic_notch_freq_hz(gyro_fft.get_weighted_noise_center_freq_hz());
-            }
-            break;
-#endif
-        case HarmonicNotchDynamicMode::Fixed: // static
-        default:
-            ins.update_harmonic_notch_freq_hz(ref_freq);
-            break;
-    }
 }
 
 // position_ok - returns true if the horizontal absolute position is ok and home position is set
@@ -345,7 +275,7 @@ bool Copter::ekf_has_relative_position() const
         return false;
     }
 
-    // return immediately if neither optflow nor visual odometry is enabled
+    // return immediately if neither optflow nor visual odometry is enabled and dead reckoning is inactive
     bool enabled = false;
 #if AP_OPTICALFLOW_ENABLED
     if (optflow.enabled()) {
@@ -357,6 +287,9 @@ bool Copter::ekf_has_relative_position() const
         enabled = true;
     }
 #endif
+    if (dead_reckoning.active && !dead_reckoning.timeout) {
+        enabled = true;
+    }
     if (!enabled) {
         return false;
     }
@@ -517,15 +450,15 @@ void Copter::allocate_motors(void)
 #if FRAME_CONFIG != HELI_FRAME
     if ((AP_Motors::motor_frame_class)g2.frame_class.get() == AP_Motors::MOTOR_FRAME_6DOF_SCRIPTING) {
 #if AP_SCRIPTING_ENABLED
-        attitude_control = new AC_AttitudeControl_Multi_6DoF(*ahrs_view, aparm, *motors, scheduler.get_loop_period_s());
+        attitude_control = new AC_AttitudeControl_Multi_6DoF(*ahrs_view, aparm, *motors);
         ac_var_info = AC_AttitudeControl_Multi_6DoF::var_info;
 #endif // AP_SCRIPTING_ENABLED
     } else {
-        attitude_control = new AC_AttitudeControl_Multi(*ahrs_view, aparm, *motors, scheduler.get_loop_period_s());
+        attitude_control = new AC_AttitudeControl_Multi(*ahrs_view, aparm, *motors);
         ac_var_info = AC_AttitudeControl_Multi::var_info;
     }
 #else
-    attitude_control = new AC_AttitudeControl_Heli(*ahrs_view, aparm, *motors, scheduler.get_loop_period_s());
+    attitude_control = new AC_AttitudeControl_Heli(*ahrs_view, aparm, *motors);
     ac_var_info = AC_AttitudeControl_Heli::var_info;
 #endif
     if (attitude_control == nullptr) {
@@ -533,7 +466,7 @@ void Copter::allocate_motors(void)
     }
     AP_Param::load_object_from_eeprom(attitude_control, ac_var_info);
         
-    pos_control = new AC_PosControl(*ahrs_view, inertial_nav, *motors, *attitude_control, scheduler.get_loop_period_s());
+    pos_control = new AC_PosControl(*ahrs_view, inertial_nav, *motors, *attitude_control);
     if (pos_control == nullptr) {
         AP_BoardConfig::allocation_error("PosControl");
     }
@@ -592,6 +525,11 @@ void Copter::allocate_motors(void)
     convert_pid_parameters();
 #if FRAME_CONFIG == HELI_FRAME
     convert_tradheli_parameters();
+#endif
+
+#if HAL_PROXIMITY_ENABLED
+    // convert PRX to PRX1_ parameters
+    convert_prx_parameters();
 #endif
 
     // param count could have changed

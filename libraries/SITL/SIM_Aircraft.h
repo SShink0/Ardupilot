@@ -18,6 +18,8 @@
 
 #pragma once
 
+#if AP_SIM_ENABLED
+
 #include <AP_Math/AP_Math.h>
 
 #include "SITL.h"
@@ -34,6 +36,10 @@
 #include "SIM_Battery.h"
 #include <Filter/Filter.h>
 #include "SIM_JSON_Master.h"
+
+#ifndef USE_PICOJSON
+#define USE_PICOJSON (CONFIG_HAL_BOARD == HAL_BOARD_SITL || CONFIG_HAL_BOARD == HAL_BOARD_LINUX)
+#endif
 
 namespace SITL {
 
@@ -89,16 +95,6 @@ public:
     // get frame rate of model in Hz
     float get_rate_hz(void) const { return rate_hz; }
 
-    // get number of motors for model
-    uint16_t get_num_motors() const {
-        return num_motors;
-    }
-
-    // get motor offset for model
-    virtual uint16_t get_motors_offset() const {
-        return 0;
-    }
-
     const Vector3f &get_gyro(void) const {
         return gyro;
     }
@@ -151,7 +147,9 @@ public:
     void set_gripper_epm(Gripper_EPM *_gripper_epm) { gripper_epm = _gripper_epm; }
     void set_precland(SIM_Precland *_precland);
     void set_i2c(class I2C *_i2c) { i2c = _i2c; }
-
+#if AP_TEST_DRONECAN_DRIVERS
+    void set_dronecan_device(DroneCANDevice *_dronecan) { dronecan = _dronecan; }
+#endif
     float get_battery_voltage() const { return battery_voltage; }
 
 protected:
@@ -178,7 +176,7 @@ protected:
     Vector3f accel_body{0.0f, 0.0f, -GRAVITY_MSS}; // m/s/s NED, body frame
     float airspeed;                      // m/s, apparent airspeed
     float airspeed_pitot;                // m/s, apparent airspeed, as seen by fwd pitot tube
-    float battery_voltage = -1.0f;
+    float battery_voltage = 0.0f;
     float battery_current;
     float local_ground_level;            // ground level at local position
     bool lock_step_scheduled;
@@ -187,9 +185,8 @@ protected:
     // battery model
     Battery battery;
 
-    uint8_t num_motors = 1;
-    uint8_t vtol_motor_start;
-    float rpm[12];
+    uint32_t motor_mask;
+    float rpm[32];
     uint8_t rcin_chan_count;
     float rcin[12];
 
@@ -203,7 +200,7 @@ protected:
     } scanner;
 
     // Rangefinder
-    float rangefinder_m[RANGEFINDER_MAX_INSTANCES];
+    float rangefinder_m[SITL_NUM_RANGEFINDERS];
 
     // Windvane apparent wind
     struct {
@@ -340,6 +337,11 @@ private:
     IntelligentEnergy24 *ie24;
     SIM_Precland *precland;
     class I2C *i2c;
+#if AP_TEST_DRONECAN_DRIVERS
+    DroneCANDevice *dronecan;
+#endif
 };
 
 } // namespace SITL
+
+#endif // AP_SIM_ENABLED

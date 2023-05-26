@@ -28,6 +28,7 @@
 #include <GCS_MAVLink/GCS.h>
 #endif
 #include <AP_Vehicle/AP_Vehicle_Type.h>
+#include <AP_Math/AP_Math.h>
 
 using namespace ChibiOS;
 
@@ -44,10 +45,12 @@ static struct gpio_entry {
     uint8_t pwm_num;
     ioline_t pal_line;
     AP_HAL::GPIO::irq_handler_fn_t fn; // callback for GPIO interface
+    thread_reference_t thd_wait;
     bool is_input;
     uint8_t mode;
-    thread_reference_t thd_wait;
     uint16_t isr_quota;
+    uint8_t isr_disabled_ticks;
+    AP_HAL::GPIO::INTERRUPT_TRIGGER_TYPE isr_mode;
 } _gpio_tab[] = HAL_GPIO_PINS;
 
 /*
@@ -89,7 +92,7 @@ void GPIO::init()
         chan_offset = 8;
     }
 #endif
-    // auto-disable pins being used for PWM output based on BRD_PWM_COUNT parameter
+    // auto-disable pins being used for PWM output
     for (uint8_t i=0; i<ARRAY_SIZE(_gpio_tab); i++) {
         struct gpio_entry *g = &_gpio_tab[i];
         if (g->pwm_num != 0) {
@@ -202,7 +205,7 @@ void GPIO::pinMode(uint8_t pin, uint8_t output)
             return;
         }
         g->mode = output?PAL_MODE_OUTPUT_PUSHPULL:PAL_MODE_INPUT;
-#if defined(STM32F7) || defined(STM32H7) || defined(STM32F4) || defined(STM32G4) || defined(STM32L4)
+#if defined(STM32F7) || defined(STM32H7) || defined(STM32F4) || defined(STM32G4) || defined(STM32L4) || defined(STM32L4PLUS)
         if (g->mode == PAL_MODE_OUTPUT_PUSHPULL) {
             // retain OPENDRAIN if already set
             iomode_t old_mode = palReadLineMode(g->pal_line);
@@ -291,6 +294,8 @@ bool GPIO::attach_interrupt(uint8_t pin,
     if (!g) {
         return false;
     }
+    g->isr_disabled_ticks = 0;
+    g->isr_quota = 0;
     if (!_attach_interrupt(g->pal_line,
                            palcallback_t(fn?pal_interrupt_cb_functor:nullptr),
                            g,
@@ -298,6 +303,7 @@ bool GPIO::attach_interrupt(uint8_t pin,
         return false;
     }
     g->fn = fn;
+    g->isr_mode = mode;
     return true;
 }
 
@@ -316,6 +322,9 @@ bool GPIO::attach_interrupt(uint8_t pin,
     if (!g) {
         return false;
     }
+    g->isr_disabled_ticks = 0;
+    g->isr_quota = 0;
+    g->isr_mode = mode;
     return _attach_interrupt(g->pal_line, proc, mode);
 }
 
@@ -462,8 +471,7 @@ static void pal_interrupt_wait(void *arg)
 }
 
 /*
-  block waiting for a pin to change. A timeout of 0 means wait
-  forever. Return true on pin change, false on timeout
+  block waiting for a pin to change. Return true on pin change, false on timeout
 */
 bool GPIO::wait_pin(uint8_t pin, INTERRUPT_TRIGGER_TYPE mode, uint32_t timeout_us)
 {
@@ -486,8 +494,11 @@ bool GPIO::wait_pin(uint8_t pin, INTERRUPT_TRIGGER_TYPE mode, uint32_t timeout_u
         osalSysUnlock();
         return false;
     }
-        
-    msg_t msg = osalThreadSuspendTimeoutS(&g->thd_wait, TIME_US2I(timeout_us));
+
+    // don't allow for very long timeouts, or below the delta
+    timeout_us = constrain_uint32(TIME_US2I(timeout_us), CH_CFG_ST_TIMEDELTA, TIME_US2I(30000U));
+
+    msg_t msg = osalThreadSuspendTimeoutS(&g->thd_wait, timeout_us);
     _attach_interruptI(g->pal_line,
                        palcallback_t(nullptr),
                        nullptr,
@@ -508,7 +519,38 @@ bool GPIO::valid_pin(uint8_t pin) const
     return gpio_by_pin_num(pin) != nullptr;
 }
 
-#if defined(STM32F7) || defined(STM32H7) || defined(STM32F4) || defined(STM32F3) || defined(STM32G4) || defined(STM32L4)
+// return servo channel associated with GPIO pin.  Returns true on success and fills in servo_ch argument
+// servo_ch uses zero-based indexing
+bool GPIO::pin_to_servo_channel(uint8_t pin, uint8_t& servo_ch) const
+{
+    uint8_t fmu_chan_offset = 0;
+#if HAL_WITH_IO_MCU
+    if (AP_BoardConfig::io_enabled()) {
+        // check if this is one of the main pins
+        uint8_t main_servo_ch = pin;
+        if (iomcu.convert_pin_number(main_servo_ch)) {
+            servo_ch = main_servo_ch;
+            return true;
+        }
+        // with IOMCU the local (FMU) channels start at 8
+        fmu_chan_offset = 8;
+    }
+#endif
+
+    // search _gpio_tab for matching pin
+    for (uint8_t i=0; i<ARRAY_SIZE(_gpio_tab); i++) {
+        if (_gpio_tab[i].pin_num == pin) {
+            if (_gpio_tab[i].pwm_num == 0) {
+                return false;
+            }
+            servo_ch = _gpio_tab[i].pwm_num-1+fmu_chan_offset;
+            return true;
+        }
+    }
+    return false;
+}
+
+#if defined(STM32F7) || defined(STM32H7) || defined(STM32F4) || defined(STM32F3) || defined(STM32G4) || defined(STM32L4) || defined(STM32L4PLUS)
 
 // allow for save and restore of pin settings
 bool GPIO::get_mode(uint8_t pin, uint32_t &mode)
@@ -541,16 +583,62 @@ void GPIO::timer_tick()
     // 10k per 100ms call to timer_tick()
     const uint16_t quota = 10000U;
     for (uint8_t i=0; i<ARRAY_SIZE(_gpio_tab); i++) {
-        if (_gpio_tab[i].isr_quota == 1) {
-            // we ran out of ISR quota for this pin since the last
-            // check. This is not really an internal error, but we use
-            // INTERNAL_ERROR() to get the reporting mechanism
+        if (_gpio_tab[i].isr_quota != 1) {
+            // Reset quota for next tick
+            _gpio_tab[i].isr_quota = quota;
+            continue;
+        }
+        // we ran out of ISR quota for this pin since the last
+        // check. This is not really an internal error, but we use
+        // INTERNAL_ERROR() to get the reporting mechanism
+
+        if (_gpio_tab[i].isr_disabled_ticks == 0) {
 #ifndef HAL_NO_UARTDRIVER
             GCS_SEND_TEXT(MAV_SEVERITY_ERROR,"ISR flood on pin %u", _gpio_tab[i].pin_num);
 #endif
-            INTERNAL_ERROR(AP_InternalError::error_t::gpio_isr);
+            // Only trigger internal error if armed
+            if (hal.util->get_soft_armed()) {
+                INTERNAL_ERROR(AP_InternalError::error_t::gpio_isr);
+            }
         }
-        _gpio_tab[i].isr_quota = quota;
+        if (hal.util->get_soft_armed()) {
+            // Don't start counting until disarmed
+            _gpio_tab[i].isr_disabled_ticks = 1;
+            continue;
+        }
+
+        // Increment disabled ticks, don't wrap
+        if (_gpio_tab[i].isr_disabled_ticks < UINT8_MAX) {
+            _gpio_tab[i].isr_disabled_ticks++;
+        }
+
+        // 100 * 100ms = 10 seconds
+        const uint8_t ISR_retry_ticks = 100U;
+        if ((_gpio_tab[i].isr_disabled_ticks > ISR_retry_ticks) && (_gpio_tab[i].fn != nullptr)) {
+            // Try re-enabling
+#ifndef HAL_NO_UARTDRIVER
+            GCS_SEND_TEXT(MAV_SEVERITY_NOTICE, "Retrying pin %d after ISR flood", _gpio_tab[i].pin_num);
+#endif
+            if (attach_interrupt(_gpio_tab[i].pin_num, _gpio_tab[i].fn, _gpio_tab[i].isr_mode)) {
+                // Success, reset quota
+                _gpio_tab[i].isr_quota = quota;
+            } else {
+                // Failed, reset disabled count to try again later
+                _gpio_tab[i].isr_disabled_ticks = 1;
+            }
+        }
     }
+}
+
+// Check for ISR floods
+bool GPIO::arming_checks(size_t buflen, char *buffer) const
+{
+    for (uint8_t i=0; i<ARRAY_SIZE(_gpio_tab); i++) {
+        if (_gpio_tab[i].isr_disabled_ticks != 0) {
+            hal.util->snprintf(buffer, buflen, "Pin %u disabled (ISR flood)", _gpio_tab[i].pin_num);
+            return false;
+        }
+    }
+    return true;
 }
 #endif // IOMCU_FW

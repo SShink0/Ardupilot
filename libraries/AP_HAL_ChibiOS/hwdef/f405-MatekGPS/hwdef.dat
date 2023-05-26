@@ -51,8 +51,6 @@ define HAL_DISABLE_LOOP_DELAY
 
 define HAL_NO_MONITOR_THREAD
 
-define HAL_MINIMIZE_FEATURES 0
-
 define HAL_DEVICE_THREAD_STACK 768
 
 # we setup a small defaults.parm
@@ -191,7 +189,6 @@ define AP_PERIPH_MSP_PORT_DEFAULT 4
 
 # ----------------- rangefinder,ADSB ----------------------
 define HAL_PERIPH_ENABLE_RANGEFINDER
-define RANGEFINDER_MAX_INSTANCES 1
 
 # disable rangefinder by default
 define AP_PERIPH_RANGEFINDER_PORT_DEFAULT -1
@@ -229,3 +226,5 @@ define HAL_BATT2_VOLT_SCALE 11.0
 # -------------------- Buzzer+NeoPixels --------------d------
 define HAL_PERIPH_ENABLE_RC_OUT
 define HAL_PERIPH_ENABLE_NOTIFY
+
+define DEFAULT_NTF_LED_TYPES 455

@@ -113,7 +113,7 @@ void Plane::navigate()
 float Plane::mode_auto_target_airspeed_cm()
 {
 #if HAL_QUADPLANE_ENABLED
-    if ((quadplane.options & QuadPlane::OPTION_MISSION_LAND_FW_APPROACH) &&
+    if (quadplane.landing_with_fixed_wing_spiral_approach() &&
         ((vtol_approach_s.approach_stage == Landing_ApproachStage::APPROACH_LINE) ||
          (vtol_approach_s.approach_stage == Landing_ApproachStage::VTOL_LANDING))) {
         const float land_airspeed = TECS_controller.get_land_airspeed();
@@ -143,9 +143,9 @@ void Plane::calc_airspeed_errors()
     // Get the airspeed_estimate, update smoothed airspeed estimate
     // NOTE:  we use the airspeed estimate function not direct sensor
     //        as TECS may be using synthetic airspeed
-    float airspeed_measured = 0;
+    float airspeed_measured = 0.1;
     if (ahrs.airspeed_estimate(airspeed_measured)) {
-        smoothed_airspeed = smoothed_airspeed * 0.8f + airspeed_measured * 0.2f;
+        smoothed_airspeed = MAX(0.1, smoothed_airspeed * 0.8f + airspeed_measured * 0.2f);
     }
 
     // low pass filter speed scaler, with 1Hz cutoff, at 10Hz
@@ -157,9 +157,9 @@ void Plane::calc_airspeed_errors()
 
     // FBW_B/cruise airspeed target
     if (!failsafe.rc_failsafe && (control_mode == &mode_fbwb || control_mode == &mode_cruise)) {
-        if (g2.flight_options & FlightOptions::CRUISE_TRIM_AIRSPEED) {
+        if (flight_option_enabled(FlightOptions::CRUISE_TRIM_AIRSPEED)) {
             target_airspeed_cm = aparm.airspeed_cruise_cm;
-        } else if (g2.flight_options & FlightOptions::CRUISE_TRIM_THROTTLE) {
+        } else if (flight_option_enabled(FlightOptions::CRUISE_TRIM_THROTTLE)) {
             float control_min = 0.0f;
             float control_mid = 0.0f;
             const float control_max = channel_throttle->get_range();
@@ -224,7 +224,7 @@ void Plane::calc_airspeed_errors()
         }
 #endif
 
-    } else if (flight_stage == AP_Vehicle::FixedWing::FLIGHT_LAND) {
+    } else if (flight_stage == AP_FixedWing::FlightStage::LAND) {
         // Landing airspeed target
         target_airspeed_cm = landing.get_target_airspeed_cm();
     } else if (control_mode == &mode_guided && new_airspeed_cm > 0) { //DO_CHANGE_SPEED overrides onboard guided speed commands, user would have re-enter guided mode to revert
@@ -344,6 +344,9 @@ void Plane::update_loiter(uint16_t radius)
         }
     }
 
+    // the radius actually being used by the controller is required by other functions
+    loiter.radius = (float)radius;
+
     update_loiter_update_nav(radius);
 
     if (loiter.start_time_ms == 0) {
@@ -365,7 +368,7 @@ void Plane::update_loiter(uint16_t radius)
 }
 
 /*
-  handle speed and height control in FBWB or CRUISE mode.
+  handle speed and height control in FBWB, CRUISE, and optionally, LOITER mode.
   In this mode the elevator is used to change target altitude. The
   throttle is used to change target airspeed or throttle
  */
@@ -411,7 +414,7 @@ void Plane::update_fbwb_speed_height(void)
         target_altitude.last_elevator_input = elevator_input;
     }
 
-    check_fbwb_minimum_altitude();
+    check_fbwb_altitude();
 
     altitude_error_cm = calc_altitude_error_cm();
 

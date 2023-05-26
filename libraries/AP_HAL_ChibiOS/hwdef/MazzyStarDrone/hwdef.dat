@@ -27,8 +27,7 @@ SERIAL_ORDER OTG1 USART1 USART2 UART4 USART3
 PD15 TIM4_CH4 TIM4 GPIO(77) ALARM
 #PD15 BUZZER OUTPUT GPIO(80) LOW
 #define HAL_BUZZER_PIN 80
-#define HAL_BUZZER_ON 1
-#define HAL_BUZZER_OFF 0
+#
 
 # PA10 IO-debug-console
 PA11 OTG_FS_DM OTG1
@@ -165,4 +164,4 @@ define HAL_BOARD_TERRAIN_DIRECTORY "/APM/TERRAIN"
 define STM32_PWM_USE_ADVANCED TRUE
 
 # we are low on flash on this board
-define HAL_MINIMIZE_FEATURES 1
+include ../include/minimize_features.inc

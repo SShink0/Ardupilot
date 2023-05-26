@@ -9,7 +9,7 @@ extern const AP_HAL::HAL &hal;
 static AP_InternalError instance;
 
 void AP_InternalError::error(const AP_InternalError::error_t e, uint16_t line) {
-#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL && defined(HAL_DEBUG_BUILD)
     switch (e) {
     case AP_InternalError::error_t::watchdog_reset:
     case AP_InternalError::error_t::main_loop_stuck:
@@ -21,6 +21,9 @@ void AP_InternalError::error(const AP_InternalError::error_t e, uint16_t line) {
         AP::internalerror().error_to_string(buffer, ARRAY_SIZE(buffer), e);
         AP_HAL::panic("AP_InternalError::error_t::%s", buffer);
     }
+#endif
+#if CONFIG_HAL_BOARD == HAL_BOARD_ESP32
+if (e == AP_InternalError::error_t::imu_reset) return;// don't worry about this for esp32
 #endif
     internal_errors |= uint32_t(e);
     total_error_count++;

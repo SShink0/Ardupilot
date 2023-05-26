@@ -18,7 +18,11 @@
 #pragma once
 
 #include "AP_RCProtocol.h"
+
+#if AP_RCPROTOCOL_ENABLED
+
 #include <AP_HAL/utility/sparse-endian.h>
+#include <AP_VideoTX/AP_VideoTX_config.h>
 
 class AP_RCProtocol_Backend {
     friend class AP_RCProtcol;
@@ -85,8 +89,19 @@ public:
     bool have_UART(void) const {
         return frontend.added.uart != nullptr;
     }
-    
+
+    // is the receiver active, used to detect power loss and baudrate changes
+    virtual bool is_rx_active() const {
+        return true;
+    }
+
+#if AP_VIDEOTX_ENABLED
+    // called by static methods to confiig video transmitters:
+    static void configure_vtx(uint8_t band, uint8_t channel, uint8_t power, uint8_t pitmode);
+#endif
+
 protected:
+
     struct Channels11Bit_8Chan {
 #if __BYTE_ORDER != __LITTLE_ENDIAN
 #error "Only supported on little-endian architectures"
@@ -119,3 +134,5 @@ private:
     int16_t rssi = -1;
     int16_t rx_link_quality = -1;
 };
+
+#endif  // AP_RCPROTOCOL_ENABLED

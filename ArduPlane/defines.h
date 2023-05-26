@@ -6,6 +6,10 @@
 #define SERVO_MAX 4500.0  // This value represents 45 degrees and is just an
                         // arbitrary representation of servo max travel.
 
+#define MIN_AIRSPEED_MIN 5 // m/s, used for arming check and speed scaling
+
+#define TAKEOFF_RUDDER_WARNING_TIMEOUT 3000 //ms that GCS warning about not returning arming rudder to neutral repeats
+
 // failsafe
 // ----------------------
 enum failsafe_state {
@@ -40,13 +44,14 @@ enum failsafe_action_long {
     FS_ACTION_LONG_RTL = 1,
     FS_ACTION_LONG_GLIDE = 2,
     FS_ACTION_LONG_PARACHUTE = 3,
+    FS_ACTION_LONG_AUTO = 4,
 };
 
 // type of stick mixing enabled
 enum class StickMixing {
     NONE     = 0,
     FBW      = 1,
-    DIRECT   = 2,
+    DIRECT_REMOVED = 2,
     VTOL_YAW = 3,
 };
 
@@ -97,10 +102,6 @@ enum log_messages {
     LOG_PIDG_MSG,
     LOG_AETR_MSG,
     LOG_OFG_MSG,
-    LOG_CMDI_MSG,
-    LOG_CMDA_MSG,
-    LOG_CMDS_MSG,
-    LOG_CMDH_MSG,
 };
 
 #define MASK_LOG_ATTITUDE_FAST          (1<<0)
@@ -162,6 +163,8 @@ enum FlightOptions {
     OSD_REMOVE_TRIM_PITCH_CD = (1 << 9),
     CENTER_THROTTLE_TRIM = (1<<10),
     DISABLE_GROUND_PID_SUPPRESSION = (1<<11),
+    ENABLE_LOITER_ALT_CONTROL = (1<<12),
+    INDICATE_WAITING_FOR_RUDDER_NEUTRAL = (1<<13),
 };
 
 enum CrowFlapOptions {

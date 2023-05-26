@@ -168,22 +168,6 @@ void Sub::Log_Write_Data(LogDataID id, float value)
     }
 }
 
-// logs when baro or compass becomes unhealthy
-void Sub::Log_Sensor_Health()
-{
-    // check baro
-    if (sensor_health.baro != barometer.healthy()) {
-        sensor_health.baro = barometer.healthy();
-        AP::logger().Write_Error(LogErrorSubsystem::BARO, (sensor_health.baro ? LogErrorCode::ERROR_RESOLVED : LogErrorCode::UNHEALTHY));
-    }
-
-    // check compass
-    if (sensor_health.compass != compass.healthy()) {
-        sensor_health.compass = compass.healthy();
-        AP::logger().Write_Error(LogErrorSubsystem::COMPASS, (sensor_health.compass ? LogErrorCode::ERROR_RESOLVED : LogErrorCode::UNHEALTHY));
-    }
-}
-
 struct PACKED log_GuidedTarget {
     LOG_PACKET_HEADER;
     uint64_t time_us;
@@ -228,14 +212,6 @@ void Sub::Log_Write_GuidedTarget(uint8_t target_type, const Vector3f& pos_target
 // @Field: TAlt: terrain altitude
 // @Field: DCRt: desired climb rate
 // @Field: CRt: climb rate
-
-// @LoggerMessage: MOTB
-// @Description: Battery information
-// @Field: TimeUS: Time since system startup
-// @Field: LiftMax: Maximum motor compensation gain
-// @Field: BatVolt: Ratio betwen detected battery voltage and maximum battery voltage
-// @Field: BatRes: Estimated battery resistance
-// @Field: ThLimit: Throttle limit set due to battery current limitations
 
 // @LoggerMessage: D16
 // @Description: Generic 16-bit-signed-integer storage
@@ -322,7 +298,6 @@ void Sub::Log_Write_Data(LogDataID id, uint32_t value) {}
 void Sub::Log_Write_Data(LogDataID id, int16_t value) {}
 void Sub::Log_Write_Data(LogDataID id, uint16_t value) {}
 void Sub::Log_Write_Data(LogDataID id, float value) {}
-void Sub::Log_Sensor_Health() {}
 void Sub::Log_Write_GuidedTarget(uint8_t target_type, const Vector3f& pos_target, const Vector3f& vel_target) {}
 void Sub::Log_Write_Vehicle_Startup_Messages() {}
 

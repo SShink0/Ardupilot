@@ -20,10 +20,13 @@
 
 #include <AP_Common/AP_Common.h>
 #include <AP_HAL/AP_HAL.h>
+#include <AP_Math/AP_Math.h>
 #include <AP_RTC/AP_RTC.h>
-#include <AP_Vehicle/AP_Vehicle.h>
+#include <AP_Vehicle/AP_Vehicle_Type.h>
 #include <GCS_MAVLink/GCS.h>
 #include <AP_Filesystem/AP_Filesystem.h>
+#include <GCS_MAVLink/GCS.h>
+#include <GCS_MAVLink/GCS_MAVLink.h>
 
 #include <stdio.h>
 
@@ -32,14 +35,23 @@
 #endif
 
 #if CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
-#ifndef BOARD_SAFETY_ENABLE_DEFAULT
-# define BOARD_SAFETY_ENABLE_DEFAULT 1
-#endif
 #ifndef BOARD_SER1_RTSCTS_DEFAULT
 # define BOARD_SER1_RTSCTS_DEFAULT 2
 #endif
 #ifndef BOARD_TYPE_DEFAULT
 # define BOARD_TYPE_DEFAULT PX4_BOARD_AUTO
+#endif
+#endif
+
+#ifndef BOARD_SAFETY_ENABLE_DEFAULT
+#if defined(HAL_GPIO_PIN_SAFETY_IN)
+  // have safety startup enabled if we have a safety pin
+  # define BOARD_SAFETY_ENABLE_DEFAULT 1
+#elif defined(HAL_WITH_IO_MCU)
+  // if we have an IOMCU then enable by default
+  # define BOARD_SAFETY_ENABLE_DEFAULT HAL_WITH_IO_MCU
+#else
+  # define BOARD_SAFETY_ENABLE_DEFAULT 0
 #endif
 #endif
 
@@ -64,7 +76,11 @@
 
 #ifndef HAL_BRD_OPTIONS_DEFAULT
 #if CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS && !APM_BUILD_TYPE(APM_BUILD_UNKNOWN) && !APM_BUILD_TYPE(APM_BUILD_Replay)
+#ifdef HAL_DEBUG_BUILD
+#define HAL_BRD_OPTIONS_DEFAULT BOARD_OPTION_WATCHDOG | BOARD_OPTION_DEBUG_ENABLE
+#else
 #define HAL_BRD_OPTIONS_DEFAULT BOARD_OPTION_WATCHDOG
+#endif
 #else
 #define HAL_BRD_OPTIONS_DEFAULT 0
 #endif
@@ -146,15 +162,13 @@ const AP_Param::GroupInfo AP_BoardConfig::var_info[] = {
 #endif
 #endif
 
-#if HAL_HAVE_SAFETY_SWITCH
-    // @Param: SAFETYENABLE
-    // @DisplayName: Enable use of safety arming switch
+    // @Param: SAFETY_DEFLT
+    // @DisplayName: Sets default state of the safety switch
     // @Description: This controls the default state of the safety switch at startup. When set to 1 the safety switch will start in the safe state (flashing) at boot. When set to zero the safety switch will start in the unsafe state (solid) at startup. Note that if a safety switch is fitted the user can still control the safety state after startup using the switch. The safety state can also be controlled in software using a MAVLink message.
     // @Values: 0:Disabled,1:Enabled
     // @RebootRequired: True
     // @User: Standard
-    AP_GROUPINFO("SAFETYENABLE",   3, AP_BoardConfig, state.safety_enable, BOARD_SAFETY_ENABLE_DEFAULT),
-#endif
+    AP_GROUPINFO("SAFETY_DEFLT",   3, AP_BoardConfig, state.safety_enable, BOARD_SAFETY_ENABLE_DEFAULT),
 
 #if AP_FEATURE_SBUS_OUT
     // @Param: SBUS_OUT
@@ -169,11 +183,10 @@ const AP_Param::GroupInfo AP_BoardConfig::var_info[] = {
     // @Param: SERIAL_NUM
     // @DisplayName: User-defined serial number
     // @Description: User-defined serial number of this vehicle, it can be any arbitrary number you want and has no effect on the autopilot
-    // @Range: -32768 32767
+    // @Range: -8388608 8388607
     // @User: Standard
     AP_GROUPINFO("SERIAL_NUM", 5, AP_BoardConfig, vehicleSerialNumber, 0),
 
-#if HAL_HAVE_SAFETY_SWITCH
     // @Param: SAFETY_MASK
     // @DisplayName: Outputs which ignore the safety switch state
     // @Description: A bitmask which controls what outputs can move while the safety switch has not been pressed
@@ -181,12 +194,11 @@ const AP_Param::GroupInfo AP_BoardConfig::var_info[] = {
     // @RebootRequired: True
     // @User: Advanced
     AP_GROUPINFO("SAFETY_MASK", 7, AP_BoardConfig, state.ignore_safety_channels, 0),
-#endif
 
 #if HAL_HAVE_IMU_HEATER
     // @Param: HEAT_TARG
     // @DisplayName: Board heater temperature target
-    // @Description: Board heater target temperature for boards with controllable heating units. DO NOT SET to -1 on the Cube. Set to -1 to disable the heater, please reboot after setting to -1.
+    // @Description: Board heater target temperature for boards with controllable heating units. Set to -1 to disable the heater, please reboot after setting to -1.
     // @Range: -1 80
     // @Units: degC
     // @User: Advanced
@@ -206,8 +218,8 @@ const AP_Param::GroupInfo AP_BoardConfig::var_info[] = {
 #if HAL_WITH_IO_MCU
     // @Param: IO_ENABLE
     // @DisplayName: Enable IO co-processor
-    // @Description: This allows for the IO co-processor on FMUv1 and FMUv2 to be disabled
-    // @Values: 0:Disabled,1:Enabled
+    // @Description: This allows for the IO co-processor on boards with an IOMCU to be disabled. Setting to 2 will enable the IOMCU but not attempt to update firmware on startup
+    // @Values: 0:Disabled,1:Enabled,2:EnableNoFWUpdate
     // @RebootRequired: True
     // @User: Advanced
     AP_GROUPINFO("IO_ENABLE", 10, AP_BoardConfig, state.io_enable, 1),
@@ -266,7 +278,7 @@ const AP_Param::GroupInfo AP_BoardConfig::var_info[] = {
 #ifdef HAL_GPIO_PWM_VOLT_PIN
     // @Param: PWM_VOLT_SEL
     // @DisplayName: Set PWM Out Voltage
-    // @Description: This sets the voltage max for PWM output pulses. 0 for 3.3V and 1 for 5V output.
+    // @Description: This sets the voltage max for PWM output pulses. 0 for 3.3V and 1 for 5V output. On boards with an IOMCU that support this parameter this option only affects the 8 main outputs, not the 6 auxilliary outputs. Using 5V output can help to reduce the impact of ESC noise interference corrupting signals to the ESCs.
     // @Values: 0:3.3V,1:5V
     // @User: Advanced
     AP_GROUPINFO("PWM_VOLT_SEL", 18, AP_BoardConfig, _pwm_volt_sel, 0),
@@ -275,7 +287,7 @@ const AP_Param::GroupInfo AP_BoardConfig::var_info[] = {
     // @Param: OPTIONS
     // @DisplayName: Board options
     // @Description: Board specific option flags
-    // @Bitmask: 0:Enable hardware watchdog, 1:Disable MAVftp, 2:Enable set of internal parameters, 3:Enable Debug Pins, 4:Unlock flash on reboot, 5:Write protect firmware flash on reboot, 6:Write protect bootloader flash on reboot
+    // @Bitmask: 0:Enable hardware watchdog, 1:Disable MAVftp, 2:Enable set of internal parameters, 3:Enable Debug Pins, 4:Unlock flash on reboot, 5:Write protect firmware flash on reboot, 6:Write protect bootloader flash on reboot, 7:Skip board validation
     // @User: Advanced
     AP_GROUPINFO("OPTIONS", 19, AP_BoardConfig, _options, HAL_BRD_OPTIONS_DEFAULT),
 
@@ -332,11 +344,24 @@ const AP_Param::GroupInfo AP_BoardConfig::var_info[] = {
     AP_GROUPINFO("HEAT_LOWMGN", 23, AP_BoardConfig, heater.imu_arming_temperature_margin_low, HAL_IMU_TEMP_MARGIN_LOW_DEFAULT),
 #endif
 
+#if AP_SDCARD_STORAGE_ENABLED
+    // @Param: SD_MISSION
+    // @DisplayName:  SDCard Mission size
+    // @Description: This sets the amount of storage in kilobytes reserved on the microsd card in mission.stg for waypoint storage. Each waypoint uses 15 bytes.
+    // @Range: 0 64
+    // @RebootRequired: True
+    // @User: Advanced
+    AP_GROUPINFO("SD_MISSION", 24, AP_BoardConfig, sdcard_storage.mission_kb, 0),
+#endif
+    
     AP_GROUPEND
 };
 
 void AP_BoardConfig::init()
 {
+    // PARAMETER_CONVERSION - Added: APR-2022
+    vehicleSerialNumber.convert_parameter_width(AP_PARAM_INT16);
+
     board_setup();
 
     AP::rtc().set_utc_usec(hal.util->get_hw_rtc(), AP_RTC::SOURCE_HW);
@@ -370,11 +395,9 @@ void AP_BoardConfig::init()
 }
 
 // set default value for BRD_SAFETY_MASK
-void AP_BoardConfig::set_default_safety_ignore_mask(uint16_t mask)
+void AP_BoardConfig::set_default_safety_ignore_mask(uint32_t mask)
 {
-#if HAL_HAVE_SAFETY_SWITCH
     state.ignore_safety_channels.set_default(mask);
-#endif
 }
 
 void AP_BoardConfig::init_safety()
@@ -410,7 +433,7 @@ void AP_BoardConfig::throw_error(const char *err_type, const char *fmt, va_list 
                 vprintf(printfmt, arg_copy);
                 va_end(arg_copy);
             }
-#if !APM_BUILD_TYPE(APM_BUILD_UNKNOWN) && !defined(HAL_BUILD_AP_PERIPH)
+#if HAL_GCS_ENABLED
             hal.util->snprintf(printfmt, sizeof(printfmt), "%s: %s", err_type, fmt);
             {
                 va_list arg_copy;
@@ -420,7 +443,7 @@ void AP_BoardConfig::throw_error(const char *err_type, const char *fmt, va_list 
             }
 #endif
         }
-#if !APM_BUILD_TYPE(APM_BUILD_UNKNOWN) && !defined(HAL_BUILD_AP_PERIPH)
+#if HAL_GCS_ENABLED
         gcs().update_receive();
         gcs().update_send();
 #endif

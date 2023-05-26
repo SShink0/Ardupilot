@@ -36,7 +36,7 @@ const AP_Param::GroupInfo AP_L1_Control::var_info[] = {
     // @Units: deg
     // @Range: 0 89
     // @User: Advanced
-    AP_GROUPINFO_FRAME("LIM_BANK",   3, AP_L1_Control, _loiter_bank_limit, 0.0f, AP_PARAM_FRAME_PLANE),
+    AP_GROUPINFO("LIM_BANK",   3, AP_L1_Control, _loiter_bank_limit, 0.0f),
 
     AP_GROUPEND
 };
@@ -193,10 +193,10 @@ void AP_L1_Control::_prevent_indecision(float &Nu)
 }
 
 // update L1 control for waypoint navigation
-void AP_L1_Control::update_waypoint(const struct Location &prev_WP, const struct Location &next_WP, float dist_min)
+void AP_L1_Control::update_waypoint(const Location &prev_WP, const Location &next_WP, float dist_min)
 {
 
-    struct Location _current_loc;
+    Location _current_loc;
     float Nu;
     float xtrackVel;
     float ltrackVel;
@@ -332,9 +332,9 @@ void AP_L1_Control::update_waypoint(const struct Location &prev_WP, const struct
 }
 
 // update L1 control for loitering
-void AP_L1_Control::update_loiter(const struct Location &center_WP, float radius, int8_t loiter_direction)
+void AP_L1_Control::update_loiter(const Location &center_WP, float radius, int8_t loiter_direction)
 {
-    struct Location _current_loc;
+    Location _current_loc;
 
     // scale loiter radius with square of EAS2TAS to allow us to stay
     // stable at high altitude

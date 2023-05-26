@@ -11,17 +11,37 @@
 #include <AP_BattMonitor/AP_BattMonitor.h>
 #include <AP_Airspeed/AP_Airspeed.h>
 #include <AP_RangeFinder/AP_RangeFinder.h>
+#include <AP_Proximity/AP_Proximity.h>
+#include <AP_EFI/AP_EFI.h>
+#include <AP_KDECAN/AP_KDECAN.h>
 #include <AP_MSP/AP_MSP.h>
 #include <AP_MSP/msp.h>
+#include <AP_TemperatureSensor/AP_TemperatureSensor.h>
 #include "../AP_Bootloader/app_comms.h"
+#include <AP_CheckFirmware/AP_CheckFirmware.h>
 #include "hwing_esc.h"
-#include <AP_CANManager/AP_CANManager.h>
+#include <AP_CANManager/AP_CAN.h>
+#include <AP_CANManager/AP_SLCANIface.h>
 #include <AP_Scripting/AP_Scripting.h>
 #include <AP_HAL/CANIface.h>
+#include <AP_Stats/AP_Stats.h>
+#include <AP_SerialManager/AP_SerialManager.h>
+#include <AP_ESC_Telem/AP_ESC_Telem_config.h>
+#if HAL_WITH_ESC_TELEM
+#include <AP_ESC_Telem/AP_ESC_Telem.h>
+#endif
+
+#include <AP_NMEA_Output/AP_NMEA_Output.h>
+#if HAL_NMEA_OUTPUT_ENABLED && !(HAL_GCS_ENABLED && defined(HAL_PERIPH_ENABLE_GPS))
+    // Needs SerialManager + (AHRS or GPS)
+    #error "AP_NMEA_Output requires Serial/GCS and either AHRS or GPS. Needs HAL_GCS_ENABLED and HAL_PERIPH_ENABLE_GPS"
+#endif
 
 #if HAL_GCS_ENABLED
 #include "GCS_MAVLink.h"
 #endif
+
+#include "esc_apd_telem.h"
 
 #if defined(HAL_PERIPH_NEOPIXEL_COUNT_WITHOUT_NOTIFY) || defined(HAL_PERIPH_ENABLE_NCP5623_LED_WITHOUT_NOTIFY) || defined(HAL_PERIPH_ENABLE_NCP5623_BGR_LED_WITHOUT_NOTIFY) || defined(HAL_PERIPH_ENABLE_TOSHIBA_LED_WITHOUT_NOTIFY)
 #define AP_PERIPH_HAVE_LED_WITHOUT_NOTIFY
@@ -49,9 +69,9 @@ void stm32_watchdog_init();
 void stm32_watchdog_pat();
 #endif
 /*
-  app descriptor compatible with MissionPlanner
+  app descriptor for firmware checking
  */
-extern const struct app_descriptor app_descriptor;
+extern const app_descriptor_t app_descriptor;
 
 extern "C" {
 void can_printf(const char *fmt, ...) FMT_PRINTF(1,2);
@@ -86,10 +106,15 @@ public:
     void can_airspeed_update();
     void can_rangefinder_update();
     void can_battery_update();
+    void can_proximity_update();
 
     void load_parameters();
     void prepare_reboot();
     bool canfdout() const { return (g.can_fdmode == 1); }
+
+#ifdef HAL_PERIPH_ENABLE_EFI
+    void can_efi_update();
+#endif
 
 #ifdef HAL_PERIPH_LISTEN_FOR_SERIAL_UART_REBOOT_CMD_PORT
     void check_for_serial_reboot_cmd(const int8_t serial_index);
@@ -101,13 +126,25 @@ public:
     static HALSITL::CANIface* can_iface_periph[HAL_NUM_CAN_IFACES];
 #endif
 
+#if AP_CAN_SLCAN_ENABLED
+    static SLCAN::CANIface slcan_interface;
+#endif
+
     AP_SerialManager serial_manager;
+
+#if AP_STATS_ENABLED
+    AP_Stats node_stats;
+#endif
 
 #ifdef HAL_PERIPH_ENABLE_GPS
     AP_GPS gps;
 #if HAL_NUM_CAN_IFACES >= 2
     int8_t gps_mb_can_port = -1;
 #endif
+#endif
+
+#if HAL_NMEA_OUTPUT_ENABLED
+    AP_NMEA_Output nmea;
 #endif
 
 #ifdef HAL_PERIPH_ENABLE_MAG
@@ -132,7 +169,7 @@ public:
     // This allows you to change the protocol and it continues to use the one at boot.
     // Without this, changing away from UAVCAN causes loss of comms and you can't
     // change the rest of your params or verify it succeeded.
-    AP_CANManager::Driver_Type can_protocol_cached[HAL_NUM_CAN_IFACES];
+    AP_CAN::Protocol can_protocol_cached[HAL_NUM_CAN_IFACES];
 #endif
 
 #ifdef HAL_PERIPH_ENABLE_MSP
@@ -169,6 +206,11 @@ public:
 
 #ifdef HAL_PERIPH_ENABLE_RANGEFINDER
     RangeFinder rangefinder;
+    uint32_t last_sample_ms;
+#endif
+
+#ifdef HAL_PERIPH_ENABLE_PRX
+    AP_Proximity proximity;
 #endif
 
 #ifdef HAL_PERIPH_ENABLE_PWM_HARDPOINT
@@ -189,24 +231,46 @@ public:
     void hwesc_telem_update();
 #endif
 
+#ifdef HAL_PERIPH_ENABLE_EFI
+    AP_EFI efi;
+    uint32_t efi_update_ms;
+#endif
+
+#if AP_KDECAN_ENABLED
+    AP_KDECAN kdecan;
+#endif
+    
+#ifdef HAL_PERIPH_ENABLE_ESC_APD
+    ESC_APD_Telem *apd_esc_telem[APD_ESC_INSTANCES];
+    void apd_esc_telem_update();
+#endif
+
 #ifdef HAL_PERIPH_ENABLE_RC_OUT
 #if HAL_WITH_ESC_TELEM
     AP_ESC_Telem esc_telem;
     uint32_t last_esc_telem_update_ms;
     void esc_telem_update();
+    uint32_t esc_telem_update_period_ms;
 #endif
 
     SRV_Channels servo_channels;
     bool rcout_has_new_data_to_update;
 
+    uint32_t last_esc_raw_command_ms;
+    uint8_t  last_esc_num_channels;
+
     void rcout_init();
     void rcout_init_1Hz();
     void rcout_esc(int16_t *rc, uint8_t num_channels);
-    void rcout_srv(const uint8_t actuator_id, const float command_value);
+    void rcout_srv_unitless(const uint8_t actuator_id, const float command_value);
+    void rcout_srv_PWM(const uint8_t actuator_id, const float command_value);
     void rcout_update();
     void rcout_handle_safety_state(uint8_t safety_state);
 #endif
 
+#if AP_TEMPERATURE_SENSOR_ENABLED
+    AP_TemperatureSensor temperature_sensor;
+#endif
 
 #if defined(HAL_PERIPH_ENABLE_NOTIFY) || defined(HAL_PERIPH_NEOPIXEL_COUNT_WITHOUT_NOTIFY)
     void update_rainbow();
@@ -246,6 +310,8 @@ public:
 
     uint32_t last_mag_update_ms;
     uint32_t last_gps_update_ms;
+    uint32_t last_gps_yaw_ms;
+    uint32_t last_relposheading_ms;
     uint32_t last_baro_update_ms;
     uint32_t last_airspeed_update_ms;
     bool saw_gps_lock_once;
@@ -270,5 +336,3 @@ namespace AP
 }
 
 extern AP_Periph_FW periph;
-
-

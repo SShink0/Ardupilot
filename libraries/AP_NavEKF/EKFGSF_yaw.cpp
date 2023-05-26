@@ -23,7 +23,6 @@
 
 #include "AP_NavEKF/EKFGSF_yaw.h"
 #include <AP_AHRS/AP_AHRS.h>
-#include <AP_Vehicle/AP_Vehicle.h>
 #include <GCS_MAVLink/GCS.h>
 
 EKFGSF_yaw::EKFGSF_yaw() {};
@@ -167,7 +166,7 @@ void EKFGSF_yaw::fuseVelData(const Vector2F &vel, const ftype velAcc)
             if (!state_update_failed) {
                 // Calculate weighting for each model assuming a normal error distribution
                 const ftype min_weight = 1e-5f;
-                uint8_t n_clips = 0;
+                n_clips = 0;
                 for (uint8_t mdl_idx = 0; mdl_idx < N_MODELS_EKFGSF; mdl_idx++) {
                     newWeight[mdl_idx] = gaussianDensity(mdl_idx) * GSF.weights[mdl_idx];
                     if (newWeight[mdl_idx] < min_weight) {
@@ -229,6 +228,11 @@ void EKFGSF_yaw::predictAHRS(const uint8_t mdl_idx)
     const ftype spinRate_squared = ang_rate_delayed_raw.length_squared();
     if (spinRate_squared < sq(0.175f)) {
         AHRS[mdl_idx].gyro_bias -= tilt_error_gyro_correction * (EKFGSF_gyroBiasGain * angle_dt);
+
+        // sanity check
+        if (AHRS[mdl_idx].gyro_bias.is_nan()) {
+            AHRS[mdl_idx].gyro_bias.zero();
+        }
 
         for (uint8_t i = 0; i < 3; i++) {
             AHRS[mdl_idx].gyro_bias[i] = constrain_ftype(AHRS[mdl_idx].gyro_bias[i], -gyro_bias_limit, gyro_bias_limit);
@@ -625,13 +629,19 @@ Matrix3F EKFGSF_yaw::updateRotMat(const Matrix3F &R, const Vector3F &g) const
     return ret;
 }
 
-bool EKFGSF_yaw::getYawData(ftype &yaw, ftype &yawVariance) const
+// returns true if a yaw estimate is available.  yaw and its variance
+// is returned, as well as the number of models which are *not* being
+// used to snthesise the yaw.
+bool EKFGSF_yaw::getYawData(ftype &yaw, ftype &yawVariance, uint8_t *_n_clips) const
 {
     if (!vel_fuse_running) {
         return false;
     }
     yaw = GSF.yaw;
     yawVariance = GSF.yaw_variance;
+    if (_n_clips != nullptr) {
+        *_n_clips = n_clips;
+    }
     return true;
 }
 

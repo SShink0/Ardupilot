@@ -43,7 +43,7 @@ enum LoggingParameters {
 // #define MASK_LOG_ARM_DISARM     (1<<15)
 #define MASK_LOG_IMU_RAW        (1UL<<19)
 #define MASK_LOG_VIDEO_STABILISATION (1UL<<20)
-
+#define MASK_LOG_OPTFLOW                (1UL<<21)
 
 // for mavlink SET_POSITION_TARGET messages
 #define MAVLINK_SET_POS_TYPE_MASK_POS_IGNORE      ((1<<0) | (1<<1))
@@ -101,4 +101,9 @@ enum frame_class {
     FRAME_ROVER = 1,
     FRAME_BOAT = 2,
     FRAME_BALANCEBOT = 3,
+};
+
+// manual mode options
+enum ManualOptions {
+    SPEED_SCALING = (1 << 0),
 };

@@ -17,11 +17,14 @@
 
 #include "AP_LTM_Telem.h"
 
+#if AP_LTM_TELEM_ENABLED
+
 #include <AP_AHRS/AP_AHRS.h>
 #include <AP_GPS/AP_GPS.h>
 #include <AP_BattMonitor/AP_BattMonitor.h>
 #include <AP_Notify/AP_Notify.h>
 #include <AP_RSSI/AP_RSSI.h>
+#include <AP_SerialManager/AP_SerialManager.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -216,3 +219,5 @@ void AP_LTM_Telem::tick(void)
         generate_LTM();
     }
 }
+
+#endif  // AP_LTM_TELEM_ENABLED

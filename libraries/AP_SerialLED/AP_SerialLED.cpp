@@ -17,6 +17,9 @@
  */
 
 #include "AP_SerialLED.h"
+
+#if AP_SERIALLED_ENABLED
+
 #include <AP_Math/AP_Math.h>
 #include "SRV_Channel/SRV_Channel.h"
 
@@ -38,7 +41,7 @@ bool AP_SerialLED::set_num_profiled(uint8_t chan, uint8_t num_leds)
 {
     if (chan >= 1 && chan <= 16 && num_leds <= AP_SERIALLED_MAX_LEDS - 2) {
         // must have a clock
-        uint16_t Clock_mask = 0;
+        uint32_t Clock_mask = 0;
         if (!SRV_Channels::function_assigned((SRV_Channel::Aux_servo_function_t)((uint8_t)SRV_Channel::k_ProfiLED_Clock))) {
             return false;
         }
@@ -65,3 +68,5 @@ void AP_SerialLED::send(uint8_t chan)
     }
 
 }
+
+#endif  // AP_SERIALLED_ENABLED

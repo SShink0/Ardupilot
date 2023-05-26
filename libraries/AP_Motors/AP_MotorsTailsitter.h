@@ -4,7 +4,6 @@
 
 #include <AP_Common/AP_Common.h>
 #include <AP_Math/AP_Math.h>
-#include <SRV_Channel/SRV_Channel.h>
 #include "AP_MotorsMulticopter.h"
 
 /// @class      AP_MotorsTailsitter
@@ -12,7 +11,7 @@ class AP_MotorsTailsitter : public AP_MotorsMulticopter {
 public:
 
     /// Constructor
-    AP_MotorsTailsitter(uint16_t loop_rate, uint16_t speed_hz = AP_MOTORS_SPEED_DEFAULT);
+    AP_MotorsTailsitter(uint16_t speed_hz = AP_MOTORS_SPEED_DEFAULT);
 
     // init
     void init(motor_frame_class frame_class, motor_frame_type frame_type) override;
@@ -28,7 +27,7 @@ public:
 
     // get_motor_mask - returns a bitmask of which outputs are being used for motors or servos (1 means being used)
     //  this can be used to ensure other pwm outputs (i.e. for servos) do not conflict
-    uint16_t get_motor_mask() override;
+    uint32_t get_motor_mask() override;
 
     // Set by tailsitters using diskloading minumum outflow velocity limit
     void set_min_throttle(float val) {_external_min_throttle = val;}

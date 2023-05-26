@@ -17,7 +17,13 @@
  */
 #pragma once
 
-#include <AP_HAL/AP_HAL.h>
+#include <AP_HAL/AP_HAL_Boards.h>
+
+#include "AP_SerialLED_config.h"
+
+#if AP_SERIALLED_ENABLED
+
+#include <stdint.h>
 
 // limit number of LEDs, mostly to keep DMA memory consumption within
 // reasonable bounds
@@ -46,3 +52,5 @@ public:
 private:
     static AP_SerialLED singleton;
 };
+
+#endif  // AP_SERIALLED_ENABLED

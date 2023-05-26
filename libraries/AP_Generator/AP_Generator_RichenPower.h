@@ -3,10 +3,9 @@
 
 #include "AP_Generator_Backend.h"
 
-#if HAL_GENERATOR_ENABLED
+#if AP_GENERATOR_RICHENPOWER_ENABLED
 
 #include <AP_Common/AP_Common.h>
-#include <SRV_Channel/SRV_Channel.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -204,5 +203,11 @@ private:
         }
         return AP_HAL::millis() - idle_state_start_ms;
     }
+
+    // check if the generator requires maintenance and send a message if it does:
+    void check_maintenance_required();
+    // if we are emitting warnings about the generator requiring
+    // maintenamce, this is the last time we sent the warning:
+    uint32_t last_maintenance_warning_ms;
 };
 #endif

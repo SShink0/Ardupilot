@@ -67,8 +67,13 @@ public:
       return 100.0f * float(_bdshot.erpm_errors[chan]) / (1 + _bdshot.erpm_errors[chan] + _bdshot.erpm_clean_frames[chan]);
     }
 #endif
-    void set_output_mode(uint16_t mask, const enum output_mode mode) override;
+    void set_output_mode(uint32_t mask, const enum output_mode mode) override;
     bool get_output_mode_banner(char banner_msg[], uint8_t banner_msg_len) const override;
+
+    /*
+     * return mask of channels that must be disabled because they share a group with a digital channel
+     */
+    uint32_t get_disabled_channels(uint32_t digital_mask) override;
 
     float scale_esc_to_unity(uint16_t pwm) override {
         return 2.0 * ((float) pwm - _esc_pwm_min) / (_esc_pwm_max - _esc_pwm_min) - 1.0;
@@ -97,7 +102,12 @@ public:
     /*
       timer push (for oneshot min rate)
      */
-    void timer_tick(uint32_t last_run_us);
+    void timer_tick(uint64_t last_run_us);
+
+    /*
+      LED push
+     */
+    void led_timer_tick(uint64_t last_run_us);
 
     /*
       setup for serial output to a set of ESCs, using the given
@@ -105,7 +115,7 @@ public:
       databits. This is used for ESC configuration and firmware
       flashing
      */
-    bool setup_serial_output(uint16_t chan_mask, ByteBuffer *buffer, uint32_t baudrate);
+    bool setup_serial_output(uint32_t chan_mask, ByteBuffer *buffer, uint32_t baudrate);
 
     /*
       setup for serial output to an ESC using the given
@@ -118,7 +128,7 @@ public:
       same channel timer group) may also be stopped, depending on the
       implementation
      */
-    bool serial_setup_output(uint8_t chan, uint32_t baudrate, uint16_t motor_mask) override;
+    bool serial_setup_output(uint8_t chan, uint32_t baudrate, uint32_t motor_mask) override;
 
     /*
       write a set of bytes to an ESC, using settings from
@@ -144,7 +154,7 @@ public:
       with Dshot to get telemetry feedback
       The mask uses servo channel numbering
      */
-    void set_telem_request_mask(uint16_t mask) override { telem_request_mask = (mask >> chan_offset); }
+    void set_telem_request_mask(uint32_t mask) override { telem_request_mask = (mask >> chan_offset); }
 
 #ifdef HAL_WITH_BIDIR_DSHOT
     /*
@@ -152,7 +162,7 @@ public:
       with Dshot to get telemetry feedback
       The mask uses servo channel numbering
      */
-    void set_bidir_dshot_mask(uint16_t mask) override;
+    void set_bidir_dshot_mask(uint32_t mask) override;
 
     void set_motor_poles(uint8_t poles) override { _bdshot.motor_poles = poles; }
 #endif
@@ -166,7 +176,7 @@ public:
     /*
       Set/get the dshot esc_type
      */
-    void set_dshot_esc_type(DshotEscType dshot_esc_type) override { _dshot_esc_type = dshot_esc_type; }
+    void set_dshot_esc_type(DshotEscType dshot_esc_type) override;
 
     DshotEscType get_dshot_esc_type() const override { return _dshot_esc_type; }
 #endif
@@ -184,7 +194,7 @@ public:
     /*
       set safety mask for IOMCU
      */
-    void set_safety_mask(uint16_t mask) { safety_mask = mask; }
+    void set_safety_mask(uint32_t mask) { safety_mask = mask; }
 
 #ifndef DISABLE_DSHOT
     /*
@@ -192,21 +202,21 @@ public:
      * so that output scaling can be performed correctly. The chanmask passed is added (ORed) into any existing mask.
      * The mask uses servo channel numbering
      */
-    void set_reversible_mask(uint16_t chanmask) override;
+    void set_reversible_mask(uint32_t chanmask) override;
 
     /*
      * mark the channels in chanmask as reversed.
      * The chanmask passed is added (ORed) into any existing mask.
      * The mask uses servo channel numbering
      */
-    void set_reversed_mask(uint16_t chanmask) override;
-    uint16_t get_reversed_mask() override { return _reversed_mask << chan_offset; }
+    void set_reversed_mask(uint32_t chanmask) override;
+    uint32_t get_reversed_mask() override { return _reversed_mask << chan_offset; }
 
     /*
       mark escs as active for the purpose of sending dshot commands
       The mask uses servo channel numbering
      */
-    void set_active_escs_mask(uint16_t chanmask) override { _active_escs_mask |= (chanmask >> chan_offset); }
+    void set_active_escs_mask(uint32_t chanmask) override { _active_escs_mask |= (chanmask >> chan_offset); }
 
     /*
       Send a dshot command, if command timout is 0 then 10 commands are sent
@@ -230,7 +240,7 @@ public:
       setup serial LED output for a given channel number, with
       the given max number of LEDs in the chain.
      */
-    bool set_serial_led_num_LEDs(const uint16_t chan, uint8_t num_leds, output_mode mode = MODE_PWM_NONE, uint16_t clock_mask = 0) override;
+    bool set_serial_led_num_LEDs(const uint16_t chan, uint8_t num_leds, output_mode mode = MODE_PWM_NONE, uint32_t clock_mask = 0) override;
 
     /*
       setup serial LED output data for a given output channel
@@ -304,9 +314,9 @@ private:
         enum output_mode current_mode;
         uint16_t frequency_hz;
         // mask of channels that are able to be enabled
-        uint16_t ch_mask;
+        uint32_t ch_mask;
         // mask of channels that are enabled and active
-        uint16_t en_mask;
+        uint32_t en_mask;
         const stm32_dma_stream_t *dma;
         Shared_DMA *dma_handle;
         uint32_t *dma_buffer;
@@ -315,9 +325,9 @@ private:
         uint32_t bit_width_mul;
         uint32_t rc_frequency;
         bool in_serial_dma;
-        uint32_t last_dmar_send_us;
-        uint32_t dshot_pulse_time_us;
-        uint32_t dshot_pulse_send_time_us;
+        uint64_t last_dmar_send_us;
+        uint64_t dshot_pulse_time_us;
+        uint64_t dshot_pulse_send_time_us;
         virtual_timer_t dma_timeout;
 
         // serial LED support
@@ -409,6 +419,17 @@ private:
     thread_t *rcout_thread_ctx;
 
     /*
+      timer thread for use by led events
+     */
+    thread_t *led_thread_ctx;
+
+    /*
+      mutex to control LED thread creation
+     */
+    HAL_Semaphore led_thread_sem;
+    bool led_thread_created;
+
+    /*
       structure for IRQ handler for soft-serial input
      */
     static struct irq_state {
@@ -461,7 +482,11 @@ private:
     // number of active fmu channels
     uint8_t active_fmu_channels;
 
+#if NUM_SERVO_CHANNELS >= 17
+    static const uint8_t max_channels = 32;
+#else
     static const uint8_t max_channels = 16;
+#endif
 
     // last sent values are for all channels
     uint16_t last_sent[max_channels];
@@ -472,7 +497,7 @@ private:
 
     // handling of bi-directional dshot
     struct {
-        uint16_t mask;
+        uint32_t mask;
         uint16_t erpm[max_channels];
 #ifdef HAL_WITH_BIDIR_DSHOT
         uint16_t erpm_errors[max_channels];
@@ -515,14 +540,14 @@ private:
 #endif
     bool corked;
     // mask of channels that are running in high speed
-    uint16_t fast_channel_mask;
-    uint16_t io_fast_channel_mask;
+    uint32_t fast_channel_mask;
+    uint32_t io_fast_channel_mask;
     // mask of channels that are 3D capable
-    uint16_t _reversible_mask;
+    uint32_t _reversible_mask;
     // mask of channels that should be reversed at startup
-    uint16_t _reversed_mask;
+    uint32_t _reversed_mask;
     // mask of active ESCs
-    uint16_t _active_escs_mask;
+    uint32_t _active_escs_mask;
 
     // min time to trigger next pulse to prevent overlap
     uint64_t min_pulse_trigger_us;
@@ -568,12 +593,16 @@ private:
     uint8_t safety_press_count; // 0.1s units
 
     // mask of channels to allow when safety on
-    uint16_t safety_mask;
+    uint32_t safety_mask;
 
     // update safety switch and LED
     void safety_update(void);
 
-    uint16_t telem_request_mask;
+    // LED thread
+    void led_thread();
+    bool start_led_thread();
+
+    uint32_t telem_request_mask;
 
     /*
       Serial lED handling. Max of 32 LEDs uses max 12k of memory per group
@@ -590,15 +619,15 @@ private:
     uint16_t create_dshot_packet(const uint16_t value, bool telem_request, bool bidir_telem);
     void fill_DMA_buffer_dshot(uint32_t *buffer, uint8_t stride, uint16_t packet, uint16_t clockmul);
 
-    void dshot_send_groups(uint32_t time_out_us);
-    void dshot_send(pwm_group &group, uint32_t time_out_us);
+    void dshot_send_groups(uint64_t time_out_us);
+    void dshot_send(pwm_group &group, uint64_t time_out_us);
     bool dshot_send_command(pwm_group &group, uint8_t command, uint8_t chan);
-    static void dshot_update_tick(void* p);
+    static void dshot_update_tick(virtual_timer_t*, void* p);
     static void dshot_send_next_group(void* p);
     // release locks on the groups that are pending in reverse order
-    void dshot_collect_dma_locks(uint32_t last_run_us);
+    void dshot_collect_dma_locks(uint64_t last_run_us, bool led_thread = false);
     static void dma_up_irq_callback(void *p, uint32_t flags);
-    static void dma_unlock(void *p);
+    static void dma_unlock(virtual_timer_t*, void *p);
     void dma_cancel(pwm_group& group);
     bool mode_requires_dma(enum output_mode mode) const;
     bool setup_group_DMA(pwm_group &group, uint32_t bitrate, uint32_t bit_width, bool active_high,
@@ -618,7 +647,7 @@ private:
     bool bdshot_decode_dshot_telemetry(pwm_group& group, uint8_t chan);
     static uint8_t bdshot_find_next_ic_channel(const pwm_group& group);
     static void bdshot_dma_ic_irq_callback(void *p, uint32_t flags);
-    static void bdshot_finish_dshot_gcr_transaction(void *p);
+    static void bdshot_finish_dshot_gcr_transaction(virtual_timer_t* vt, void *p);
     bool bdshot_setup_group_ic_DMA(pwm_group &group);
     static void bdshot_receive_pulses_DMAR(pwm_group* group);
     static void bdshot_config_icu_dshot(stm32_tim_t* TIMx, uint8_t chan, uint8_t ccr_ch);
@@ -641,7 +670,7 @@ private:
     bool serial_read_byte(uint8_t &b);
     void fill_DMA_buffer_byte(uint32_t *buffer, uint8_t stride, uint8_t b , uint32_t bitval);
     static void serial_bit_irq(void);
-    static void serial_byte_timeout(void *ctx);
+    static void serial_byte_timeout(virtual_timer_t* vt, void *ctx);
 
 };
 

@@ -19,45 +19,25 @@
 #include <setjmp.h>
 
 #include <AP_Filesystem/posix_compat.h>
-#include "lua_bindings.h"
 #include <AP_Scripting/AP_Scripting.h>
-#include <GCS_MAVLink/GCS.h>
+#include <GCS_MAVLink/GCS_MAVLink.h>
+#include <AP_HAL/Semaphores.h>
+#include <AP_Common/MultiHeap.h>
+#include "lua_common_defs.h"
 
-#ifndef REPL_DIRECTORY
-  #if HAL_OS_FATFS_IO
-    #define REPL_DIRECTORY "/APM/repl"
-  #else
-    #define REPL_DIRECTORY "./repl"
-  #endif //HAL_OS_FATFS_IO
-#endif // REPL_DIRECTORY
-
-#ifndef SCRIPTING_DIRECTORY
-  #if HAL_OS_FATFS_IO
-    #define SCRIPTING_DIRECTORY "/APM/scripts"
-  #else
-    #define SCRIPTING_DIRECTORY "./scripts"
-  #endif //HAL_OS_FATFS_IO
-#endif // SCRIPTING_DIRECTORY
-
-#ifndef REPL_IN
-  #define REPL_IN REPL_DIRECTORY "/in"
-#endif // REPL_IN
-
-#ifndef REPL_OUT
-  #define REPL_OUT REPL_DIRECTORY "/out"
-#endif // REPL_OUT
+#include "lua/src/lua.hpp"
 
 class lua_scripts
 {
 public:
     lua_scripts(const AP_Int32 &vm_steps, const AP_Int32 &heap_size, const AP_Int8 &debug_options, struct AP_Scripting::terminal_s &_terminal);
 
-    /* Do not allow copies */
-    lua_scripts(const lua_scripts &other) = delete;
-    lua_scripts &operator=(const lua_scripts&) = delete;
+    ~lua_scripts();
+
+    CLASS_NO_COPY(lua_scripts);
 
     // return true if initialisation failed
-    bool heap_allocated() const { return _heap != nullptr; }
+    bool heap_allocated() const { return _heap.available(); }
 
     // run scripts, does not return unless an error occured
     void run(void);
@@ -69,12 +49,12 @@ public:
         RUNTIME_MSG = 1U << 1,
         SUPPRESS_SCRIPT_LOG = 1U << 2,
         LOG_RUNTIME = 1U << 3,
+        DISABLE_PRE_ARM = 1U << 4,
     };
 
 private:
 
     void create_sandbox(lua_State *L);
-
     void repl_cleanup(void);
 
     typedef struct script_info {
@@ -128,12 +108,27 @@ private:
 
     static void *alloc(void *ud, void *ptr, size_t osize, size_t nsize);
 
-    static void *_heap;
+    static MultiHeap _heap;
+
+    // helper for print and log of runtime stats
+    void update_stats(const char *name, uint32_t run_time, int total_mem, int run_mem);
 
     // must be static for use in atpanic
     static void print_error(MAV_SEVERITY severity);
-    static void set_and_print_new_error_message(MAV_SEVERITY severity, const char *fmt, ...) FMT_PRINTF(2,3);
     static char *error_msg_buf;
+    static HAL_Semaphore error_msg_buf_sem;
     static uint8_t print_error_count;
     static uint32_t last_print_ms;
+    int current_ref;
+
+public:
+    // must be static for use in atpanic, public to allow bindings to issue none fatal warnings
+    static void set_and_print_new_error_message(MAV_SEVERITY severity, const char *fmt, ...) FMT_PRINTF(2,3);
+
+    // return last error message, nullptr if none, must use semaphore as this is updated in the scripting thread
+    static const char* get_last_error_message() { return error_msg_buf; }
+
+    // get semaphore for above error buffer
+    static AP_HAL::Semaphore* get_last_error_semaphore() { return &error_msg_buf_sem; }
+
 };

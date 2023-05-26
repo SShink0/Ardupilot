@@ -188,7 +188,6 @@ bool Sub::verify_command(const AP_Mission::Mission_Command& cmd)
     case MAV_CMD_DO_SET_HOME:
     case MAV_CMD_DO_SET_ROI:
     case MAV_CMD_DO_MOUNT_CONTROL:
-    case MAV_CMD_DO_CONTROL_VIDEO:
     case MAV_CMD_DO_SET_CAM_TRIGG_DIST:
     case MAV_CMD_DO_GUIDED_LIMITS:
         return true;
@@ -353,10 +352,17 @@ void Sub::do_circle(const AP_Mission::Mission_Command& cmd)
     }
 
     // calculate radius
-    uint8_t circle_radius_m = HIGHBYTE(cmd.p1); // circle radius held in high byte of p1
+    uint16_t circle_radius_m = HIGHBYTE(cmd.p1); // circle radius held in high byte of p1
+    if (cmd.type_specific_bits & (1U << 0)) {
+        circle_radius_m *= 10;
+    }
+
+
+    // true if circle should be ccw
+    const bool circle_direction_ccw = cmd.content.location.loiter_ccw;
 
     // move to edge of circle (verify_circle) will ensure we begin circling once we reach the edge
-    auto_circle_movetoedge_start(circle_center, circle_radius_m);
+    auto_circle_movetoedge_start(circle_center, circle_radius_m, circle_direction_ccw);
 }
 
 // do_loiter_time - initiate loitering at a point for a given time period
@@ -682,6 +688,6 @@ void Sub::do_roi(const AP_Mission::Mission_Command& cmd)
 void Sub::do_mount_control(const AP_Mission::Mission_Command& cmd)
 {
 #if HAL_MOUNT_ENABLED
-    camera_mount.set_angle_targets(cmd.content.mount_control.roll, cmd.content.mount_control.pitch, cmd.content.mount_control.yaw);
+    camera_mount.set_angle_target(cmd.content.mount_control.roll, cmd.content.mount_control.pitch, cmd.content.mount_control.yaw, false);
 #endif
 }

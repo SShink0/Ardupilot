@@ -1,44 +1,14 @@
 #pragma once
 
-#include <AP_HAL/AP_HAL.h>
+#include "AP_BoardConfig_config.h"
 #include <AP_Common/AP_Common.h>
 #include <AP_Param/AP_Param.h>
 #include <AP_RTC/AP_RTC.h>
 #include <AC_PID/AC_PI.h>
 
-#ifndef AP_FEATURE_BOARD_DETECT
-#if defined(HAL_CHIBIOS_ARCH_FMUV3) || defined(HAL_CHIBIOS_ARCH_FMUV4) || defined(HAL_CHIBIOS_ARCH_FMUV5) || defined(HAL_CHIBIOS_ARCH_MINDPXV2) || defined(HAL_CHIBIOS_ARCH_FMUV4PRO) || defined(HAL_CHIBIOS_ARCH_BRAINV51) || defined(HAL_CHIBIOS_ARCH_BRAINV52) || defined(HAL_CHIBIOS_ARCH_UBRAINV51) || defined(HAL_CHIBIOS_ARCH_COREV10) || defined(HAL_CHIBIOS_ARCH_BRAINV54)
-#define AP_FEATURE_BOARD_DETECT 1
-#else
-#define AP_FEATURE_BOARD_DETECT 0
-#endif
-#endif
-
-#ifndef AP_FEATURE_RTSCTS
-#define AP_FEATURE_RTSCTS 0
-#endif
-
-#ifndef AP_FEATURE_SBUS_OUT
-#define AP_FEATURE_SBUS_OUT 0
-#endif
-
 #if HAL_RCINPUT_WITH_AP_RADIO
 #include <AP_Radio/AP_Radio.h>
 #endif
-
-#ifndef HAL_WATCHDOG_ENABLED_DEFAULT
-#define HAL_WATCHDOG_ENABLED_DEFAULT false
-#endif
-
-#if HAL_HAVE_IMU_HEATER
-#ifndef HAL_IMUHEAT_P_DEFAULT
-#define HAL_IMUHEAT_P_DEFAULT 200
-#endif
-#ifndef HAL_IMUHEAT_I_DEFAULT
-#define HAL_IMUHEAT_I_DEFAULT 0.3
-#endif
-#endif
-
 
 extern "C" typedef int (*main_fn_t)(int argc, char **);
 
@@ -47,8 +17,7 @@ public:
     AP_BoardConfig();
 
     /* Do not allow copies */
-    AP_BoardConfig(const AP_BoardConfig &other) = delete;
-    AP_BoardConfig &operator=(const AP_BoardConfig&) = delete;
+    CLASS_NO_COPY(AP_BoardConfig);
 
     // singleton support
     static AP_BoardConfig *get_singleton(void) {
@@ -96,11 +65,13 @@ public:
         VRX_BOARD_CORE10   = 36,
         VRX_BOARD_BRAIN54  = 38,
         PX4_BOARD_FMUV6    = 39,
+        FMUV6_BOARD_HOLYBRO_6X = 40,
+        FMUV6_BOARD_CUAV_6X = 41,
         PX4_BOARD_OLDDRIVERS = 100,
     };
 
     // set default value for BRD_SAFETY_MASK
-    void set_default_safety_ignore_mask(uint16_t mask);
+    void set_default_safety_ignore_mask(uint32_t mask);
 
     static enum px4_board_type get_board_type(void) {
 #if AP_FEATURE_BOARD_DETECT
@@ -140,11 +111,7 @@ public:
 
     // return the value of BRD_SAFETY_MASK
     uint16_t get_safety_mask(void) const {
-#if AP_FEATURE_BOARD_DETECT || defined(AP_FEATURE_BRD_PWM_COUNT_PARAM)
-        return uint16_t(state.ignore_safety_channels.get());
-#else
-        return 0;
-#endif
+        return uint32_t(state.ignore_safety_channels.get());
     }
 
 #if HAL_HAVE_BOARD_VOLTAGE
@@ -175,6 +142,7 @@ public:
         UNLOCK_FLASH = (1<<4),
         WRITE_PROTECT_FLASH = (1<<5),
         WRITE_PROTECT_BOOTLOADER = (1<<6),
+        SKIP_BOARD_VALIDATION = (1<<7)
     };
 
     // return true if ftp is disabled
@@ -224,10 +192,17 @@ public:
     bool get_board_heater_arming_temperature(int8_t &temperature) const;
 #endif
 
+#if AP_SDCARD_STORAGE_ENABLED
+    // return number of kb of mission storage to use on microSD
+    static uint16_t get_sdcard_mission_kb(void) {
+        return _singleton? _singleton->sdcard_storage.mission_kb.get() : 0;
+    }
+#endif
+
 private:
     static AP_BoardConfig *_singleton;
     
-    AP_Int16 vehicleSerialNumber;
+    AP_Int32 vehicleSerialNumber;
 
     struct {
         AP_Int8 safety_enable;
@@ -241,6 +216,12 @@ private:
         AP_Int8 io_enable;
     } state;
 
+#if AP_SDCARD_STORAGE_ENABLED
+    struct {
+        AP_Int16 mission_kb;
+    } sdcard_storage;
+#endif
+
 #if AP_FEATURE_BOARD_DETECT
     static enum px4_board_type px4_configured_board;
 
@@ -249,6 +230,7 @@ private:
     bool spi_check_register_inv2(const char *devname, uint8_t regnum, uint8_t value, uint8_t read_flag = 0x80);
     void validate_board_type(void);
     void board_autodetect(void);
+    void detect_fmuv6_variant(void);
     bool check_ms5611(const char* devname);
 
 #endif // AP_FEATURE_BOARD_DETECT

@@ -20,6 +20,9 @@
 
 #include "AC_AutoTune.h"
 #include <AP_Math/chirp.h>
+#include <GCS_MAVLink/GCS.h>
+
+#include <AP_Scheduler/AP_Scheduler.h>
 
 class AC_AutoTune_Heli : public AC_AutoTune
 {
@@ -41,6 +44,9 @@ protected:
 
     // backup original gains and prepare for start of tuning
     void backup_gains_and_initialise() override;
+
+    // load gains
+    void load_gain_set(AxisType s_axis, float rate_p, float rate_i, float rate_d, float rate_ff, float angle_p, float max_accel, float rate_fltt, float rate_flte, float smax);
 
     // switch to use original gains
     void load_orig_gains() override;
@@ -141,6 +147,7 @@ private:
     enum DwellType {
         RATE    = 0,
         ANGLE   = 1,
+        DRB     = 2,
     };
 
     // Feedforward test used to determine Rate FF gain

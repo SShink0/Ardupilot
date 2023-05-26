@@ -63,7 +63,11 @@
 #define HAL_BOARD_SUBTYPE_ESP32_DIY             6001
 #define HAL_BOARD_SUBTYPE_ESP32_ICARUS          6002
 #define HAL_BOARD_SUBTYPE_ESP32_BUZZ            6003
-#define HAL_BOARD_SUBTYPE_ESP32_IMU_MODULE_V11            6004
+#define HAL_BOARD_SUBTYPE_ESP32_EMPTY           6004
+#define HAL_BOARD_SUBTYPE_ESP32_TOMTE76         6005
+#define HAL_BOARD_SUBTYPE_ESP32_NICK            6006
+#define HAL_BOARD_SUBTYPE_ESP32_IMU_MODULE_V11  6007
+
 
 /* InertialSensor driver types */
 #define HAL_INS_NONE         0
@@ -142,10 +146,6 @@
 #error "No CONFIG_HAL_BOARD_SUBTYPE set"
 #endif
 
-#ifndef HAL_OS_POSIX_IO
-#define HAL_OS_POSIX_IO 0
-#endif
-
 #ifndef HAL_OS_SOCKETS
 #define HAL_OS_SOCKETS 0
 #endif
@@ -156,10 +156,6 @@
 
 #ifndef HAL_HAVE_IMU_HEATER
 #define HAL_HAVE_IMU_HEATER 0
-#endif
-
-#ifndef HAL_COMPASS_HMC5843_I2C_ADDR
-#define HAL_COMPASS_HMC5843_I2C_ADDR 0x1E
 #endif
 
 #ifndef HAL_NUM_CAN_IFACES
@@ -185,12 +181,13 @@
 #define BOARD_FLASH_SIZE 2048
 #endif
 
-#ifndef HAL_WITH_DSP
-#if CONFIG_HAL_BOARD == HAL_BOARD_LINUX || defined(HAL_BOOTLOADER_BUILD) || defined(HAL_BUILD_AP_PERIPH) || BOARD_FLASH_SIZE <= 1024
-#define HAL_WITH_DSP 0
-#else
-#define HAL_WITH_DSP !HAL_MINIMIZE_FEATURES
+#ifndef HAL_GYROFFT_ENABLED
+#define HAL_GYROFFT_ENABLED (BOARD_FLASH_SIZE > 1024)
 #endif
+
+// enable AP_GyroFFT library only if required:
+#ifndef HAL_WITH_DSP
+#define HAL_WITH_DSP HAL_GYROFFT_ENABLED
 #endif
 
 #ifndef HAL_OS_FATFS_IO
@@ -214,19 +211,23 @@
 #endif
 
 #ifndef HAL_MAX_CAN_PROTOCOL_DRIVERS
-#if defined(HAL_BOOTLOADER_BUILD)
-    #define HAL_MAX_CAN_PROTOCOL_DRIVERS 0
-#else
     #define HAL_MAX_CAN_PROTOCOL_DRIVERS HAL_NUM_CAN_IFACES
-#endif
 #endif
 
 #ifndef HAL_CANMANAGER_ENABLED
-#define HAL_CANMANAGER_ENABLED ((HAL_MAX_CAN_PROTOCOL_DRIVERS > 0) && !defined(HAL_BUILD_AP_PERIPH))
+#define HAL_CANMANAGER_ENABLED (HAL_MAX_CAN_PROTOCOL_DRIVERS > 0)
 #endif
 
-#ifndef HAL_ENABLE_LIBUAVCAN_DRIVERS
-#define HAL_ENABLE_LIBUAVCAN_DRIVERS HAL_CANMANAGER_ENABLED
+#ifndef HAL_ENABLE_DRONECAN_DRIVERS
+#define HAL_ENABLE_DRONECAN_DRIVERS HAL_CANMANAGER_ENABLED
+#endif
+
+#ifndef AP_TEST_DRONECAN_DRIVERS
+#define AP_TEST_DRONECAN_DRIVERS 0
+#endif
+
+#ifndef AP_AIRSPEED_BACKEND_DEFAULT_ENABLED
+#define AP_AIRSPEED_BACKEND_DEFAULT_ENABLED 1
 #endif
 
 #ifdef HAVE_LIBDL
@@ -239,31 +240,52 @@
 #define HAL_SUPPORT_RCOUT_SERIAL 0
 #endif
 
+#ifndef HAL_FORWARD_OTG2_SERIAL
+#define HAL_FORWARD_OTG2_SERIAL 0
+#endif
 
 #ifndef HAL_HAVE_DUAL_USB_CDC
 #define HAL_HAVE_DUAL_USB_CDC 0
 #endif
 
+#ifndef AP_CAN_SLCAN_ENABLED
 #if HAL_NUM_CAN_IFACES && CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
-#define AP_UAVCAN_SLCAN_ENABLED 1
+#define AP_CAN_SLCAN_ENABLED 1
 #else
-#define AP_UAVCAN_SLCAN_ENABLED 0
+#define AP_CAN_SLCAN_ENABLED 0
+#endif
 #endif
 
 #ifndef USE_LIBC_REALLOC
 #define USE_LIBC_REALLOC 1
 #endif
 
+#ifndef AP_HAL_SHARED_DMA_ENABLED
+#define AP_HAL_SHARED_DMA_ENABLED 1
+#endif
+
 #ifndef HAL_ENABLE_THREAD_STATISTICS
 #define HAL_ENABLE_THREAD_STATISTICS 0
 #endif
 
-#ifndef HAL_INS_ENABLED
-#define HAL_INS_ENABLED (!defined(HAL_BUILD_AP_PERIPH))
+#ifndef AP_STATS_ENABLED
+#define AP_STATS_ENABLED 1
 #endif
 
 #ifndef HAL_WITH_MCU_MONITORING
 #define HAL_WITH_MCU_MONITORING 0
+#endif
+
+#ifndef AP_CRASHDUMP_ENABLED
+#define AP_CRASHDUMP_ENABLED 0
+#endif
+
+#ifndef AP_SIGNED_FIRMWARE
+#define AP_SIGNED_FIRMWARE 0
+#endif
+
+#ifndef HAL_DSHOT_ALARM_ENABLED
+#define HAL_DSHOT_ALARM_ENABLED 0
 #endif
 
 #ifndef HAL_HNF_MAX_FILTERS
@@ -291,10 +313,33 @@
 #define HAL_CANFD_SUPPORTED 0
 #endif
 
+#ifndef HAL_USE_QUADSPI
+#define HAL_USE_QUADSPI 0
+#endif
+#ifndef HAL_USE_OCTOSPI
+#define HAL_USE_OCTOSPI 0
+#endif
+
 #ifndef __RAMFUNC__
 #define __RAMFUNC__
 #endif
 
 #ifndef __FASTRAMFUNC__
 #define __FASTRAMFUNC__
+#endif
+
+#ifndef __EXTFLASHFUNC__
+#define __EXTFLASHFUNC__
+#endif
+
+#ifndef HAL_ENABLE_DFU_BOOT
+#define HAL_ENABLE_DFU_BOOT 0
+#endif
+
+
+// sanity checks for the configuration.  This can't test everything as
+// the libraries can do their own definitions - but we can catch some
+// things:
+#if HAL_MINIMIZE_FEATURES && BOARD_FLASH_SIZE > 1024
+#error "2MB board with minimize features?!"
 #endif

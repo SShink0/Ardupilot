@@ -28,20 +28,22 @@
   #define SCRIPTING_MAX_NUM_I2C_DEVICE 4
 #endif
 
+#define SCRIPTING_MAX_NUM_PWM_SOURCE 4
+
 class AP_Scripting
 {
 public:
     AP_Scripting();
 
     /* Do not allow copies */
-    AP_Scripting(const AP_Scripting &other) = delete;
-    AP_Scripting &operator=(const AP_Scripting&) = delete;
+    CLASS_NO_COPY(AP_Scripting);
 
     void init(void);
-    bool init_failed(void) const { return _init_failed; }
 
     bool enabled(void) const { return _enable != 0; };
     bool should_run(void) const { return enabled() && !_stop; }
+
+    void handle_message(const mavlink_message_t &msg, const mavlink_channel_t chan);
 
     static AP_Scripting * get_singleton(void) { return _singleton; }
 
@@ -50,6 +52,10 @@ public:
     MAV_RESULT handle_command_int_packet(const mavlink_command_int_t &packet);
 
     void handle_mission_command(const class AP_Mission::Mission_Command& cmd);
+
+    bool arming_checks(size_t buflen, char *buffer) const;
+    
+    void restart_all(void);
 
    // User parameters for inputs into scripts 
    AP_Float _user[6];
@@ -73,6 +79,7 @@ public:
 #if HAL_MAX_CAN_PROTOCOL_DRIVERS
     // Scripting CAN sensor
     ScriptingCANSensor *_CAN_dev;
+    ScriptingCANSensor *_CAN_dev2;
 #endif
 
     // mission item buffer
@@ -85,6 +92,25 @@ public:
         uint32_t time_ms;
     };
     ObjectBuffer<struct scripting_mission_cmd> * mission_data;
+
+    // PWMSource storage
+    uint8_t num_pwm_source;
+    AP_HAL::PWMSource *_pwm_source[SCRIPTING_MAX_NUM_PWM_SOURCE];
+    int get_current_ref() { return current_ref; }
+    void set_current_ref(int ref) { current_ref = ref; }
+
+    struct mavlink_msg {
+        mavlink_message_t msg;
+        mavlink_channel_t chan;
+        uint32_t timestamp_ms;
+    };
+
+    struct mavlink {
+        ObjectBuffer<struct mavlink_msg> *rx_buffer;
+        uint32_t *accept_msg_ids;
+        uint16_t accept_msg_ids_size;
+        HAL_Semaphore sem;
+    } mavlink_data;
 
 private:
 
@@ -101,12 +127,13 @@ private:
     AP_Int8 _debug_options;
     AP_Int16 _dir_disable;
 
+    bool _thread_failed; // thread allocation failed
     bool _init_failed;  // true if memory allocation failed
     bool _restart; // true if scripts should be restarted
     bool _stop; // true if scripts should be stopped
 
     static AP_Scripting *_singleton;
-
+    int current_ref;
 };
 
 namespace AP {

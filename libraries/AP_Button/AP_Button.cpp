@@ -40,28 +40,28 @@ const AP_Param::GroupInfo AP_Button::var_info[] = {
 
     // @Param: PIN1
     // @DisplayName: First button Pin
-    // @Description: Digital pin number for first button input. 
+    // @Description: Digital pin number for first button input.  Some common values are given, but see the Wiki's "GPIOs" page for how to determine the pin number for a given autopilot.
     // @User: Standard
     // @Values: -1:Disabled,50:AUXOUT1,51:AUXOUT2,52:AUXOUT3,53:AUXOUT4,54:AUXOUT5,55:AUXOUT6
     AP_GROUPINFO("PIN1",  1, AP_Button, pin[0], -1),
 
     // @Param: PIN2
     // @DisplayName: Second button Pin
-    // @Description: Digital pin number for second button input. 
+    // @Description: Digital pin number for second button input.  Some common values are given, but see the Wiki's "GPIOs" page for how to determine the pin number for a given autopilot.
     // @User: Standard
     // @Values: -1:Disabled,50:AUXOUT1,51:AUXOUT2,52:AUXOUT3,53:AUXOUT4,54:AUXOUT5,55:AUXOUT6
     AP_GROUPINFO("PIN2",  2, AP_Button, pin[1], -1),
 
     // @Param: PIN3
     // @DisplayName: Third button Pin
-    // @Description: Digital pin number for third button input. 
+    // @Description: Digital pin number for third button input.  Some common values are given, but see the Wiki's "GPIOs" page for how to determine the pin number for a given autopilot.
     // @User: Standard
     // @Values: -1:Disabled,50:AUXOUT1,51:AUXOUT2,52:AUXOUT3,53:AUXOUT4,54:AUXOUT5,55:AUXOUT6
     AP_GROUPINFO("PIN3",  3, AP_Button, pin[2], -1),
 
     // @Param: PIN4
     // @DisplayName: Fourth button Pin
-    // @Description: Digital pin number for fourth button input. 
+    // @Description: Digital pin number for fourth button input. Some common values are given, but see the Wiki's "GPIOs" page for how to determine the pin number for a given autopilot.
     // @User: Standard
     // @Values: -1:Disabled,50:AUXOUT1,51:AUXOUT2,52:AUXOUT3,53:AUXOUT4,54:AUXOUT5,55:AUXOUT6
     AP_GROUPINFO("PIN4",  4, AP_Button, pin[3], -1),
@@ -101,31 +101,25 @@ const AP_Param::GroupInfo AP_Button::var_info[] = {
     AP_GROUPINFO("OPTIONS4",  9, AP_Button, options[3], 0),
 
     // @Param: FUNC1
+    // @CopyFieldsFrom: RC1_OPTION
     // @DisplayName: Button Pin 1 RC Channel function
     // @Description: Auxiliary RC Options function executed on pin change
-    // @CopyValuesFrom: RC1_OPTION
     // @User: Standard
     AP_GROUPINFO("FUNC1",  10, AP_Button, pin_func[0], (uint16_t)RC_Channel::AUX_FUNC::DO_NOTHING),
 
     // @Param: FUNC2
+    // @CopyFieldsFrom: BTN_FUNC1
     // @DisplayName: Button Pin 2 RC Channel function
-    // @Description: Auxiliary RC Options function executed on pin change
-    // @CopyValuesFrom: RC1_OPTION
-    // @User: Standard
     AP_GROUPINFO("FUNC2",  11, AP_Button, pin_func[1], (uint16_t)RC_Channel::AUX_FUNC::DO_NOTHING),
 
     // @Param: FUNC3
+    // @CopyFieldsFrom: BTN_FUNC1
     // @DisplayName: Button Pin 3 RC Channel function
-    // @Description: Auxiliary RC Options function executed on pin change
-    // @CopyValuesFrom: RC1_OPTION
-    // @User: Standard
     AP_GROUPINFO("FUNC3",  12, AP_Button, pin_func[2], (uint16_t)RC_Channel::AUX_FUNC::DO_NOTHING),
 
     // @Param: FUNC4
+    // @CopyFieldsFrom: BTN_FUNC1
     // @DisplayName: Button Pin 4 RC Channel function
-    // @Description: Auxiliary RC Options function executed on pin change
-    // @CopyValuesFrom: RC1_OPTION
-    // @User: Standard
     AP_GROUPINFO("FUNC4",  13, AP_Button, pin_func[3], (uint16_t)RC_Channel::AUX_FUNC::DO_NOTHING),
 
     AP_GROUPEND    
@@ -276,10 +270,10 @@ void AP_Button::run_aux_functions(bool force)
 
         const RC_Channel::AuxSwitchPos pos = value ? RC_Channel::AuxSwitchPos::HIGH : RC_Channel::AuxSwitchPos::LOW;
         // I wonder if we can do better here:
-#if !HAL_MINIMIZE_FEATURES
+#if AP_RC_CHANNEL_AUX_FUNCTION_STRINGS_ENABLED
         const char *str = rc_channel->string_for_aux_function(func);
         if (str != nullptr) {
-            gcs().send_text(MAV_SEVERITY_INFO, "Button: executing (%s)", str);
+            gcs().send_text(MAV_SEVERITY_INFO, "Button %i: executing (%s %s)", i+1, str, rc_channel->string_for_aux_pos(pos));
         }
 #endif
         rc_channel->run_aux_function(func, pos, RC_Channel::AuxFuncTriggerSource::BUTTON);
@@ -388,7 +382,12 @@ bool AP_Button::arming_checks(size_t buflen, char *buffer) const
     }
     for (uint8_t i=0; i<AP_BUTTON_NUM_PINS; i++) {
         if (pin[i] != -1 && !hal.gpio->valid_pin(pin[i])) {
-            hal.util->snprintf(buffer, buflen, "BTN_PIN%u %d invalid", unsigned(i + 1), int(pin[i].get()));
+            uint8_t servo_ch;
+            if (hal.gpio->pin_to_servo_channel(pin[i], servo_ch)) {
+                hal.util->snprintf(buffer, buflen, "BTN_PIN%u=%d, set SERVO%u_FUNCTION=-1", unsigned(i + 1), int(pin[i].get()), unsigned(servo_ch+1));
+            } else {
+                hal.util->snprintf(buffer, buflen, "BTN_PIN%u=%d invalid", unsigned(i + 1), int(pin[i].get()));
+            }
             return false;
         }
     }

@@ -19,6 +19,9 @@
   with thanks to https://github.com/PX4/Firmware/blob/master/src/drivers/sdp3x_airspeed
  */
 #include "AP_Airspeed_SDP3X.h"
+
+#if AP_AIRSPEED_SDP3X_ENABLED
+
 #include <GCS_MAVLink/GCS.h>
 #include <AP_Baro/AP_Baro.h>
 
@@ -38,11 +41,6 @@
 #define SDP3X_SCALE_PRESSURE_SDP33	20
 
 extern const AP_HAL::HAL &hal;
-
-AP_Airspeed_SDP3X::AP_Airspeed_SDP3X(AP_Airspeed &_frontend, uint8_t _instance) :
-    AP_Airspeed_Backend(_frontend, _instance)
-{
-}
 
 /*
   send a 16 bit command code
@@ -347,3 +345,5 @@ bool AP_Airspeed_SDP3X::_crc(const uint8_t data[], uint8_t size, uint8_t checksu
     // verify checksum
     return (crc_value == checksum);
 }
+
+#endif  // AP_AIRSPEED_SDP3X_ENABLED

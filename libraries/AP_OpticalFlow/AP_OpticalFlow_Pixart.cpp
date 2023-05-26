@@ -20,9 +20,11 @@
   timing for register reads and writes is critical
  */
 
-#include "AP_OpticalFlow_Pixart.h"
+#include "AP_OpticalFlow_config.h"
 
 #if AP_OPTICALFLOW_PIXART_ENABLED
+
+#include "AP_OpticalFlow_Pixart.h"
 
 #include <AP_HAL/AP_HAL.h>
 #include <AP_Math/crc.h>
@@ -83,14 +85,14 @@ extern const AP_HAL::HAL& hal;
 #define PIXART_SROM_CRC_RESULT 0xBEEF
 
 // constructor
-AP_OpticalFlow_Pixart::AP_OpticalFlow_Pixart(const char *devname, OpticalFlow &_frontend) :
+AP_OpticalFlow_Pixart::AP_OpticalFlow_Pixart(const char *devname, AP_OpticalFlow &_frontend) :
     OpticalFlow_backend(_frontend)
 {
     _dev = std::move(hal.spi->get_device(devname));
 }
 
 // detect the device
-AP_OpticalFlow_Pixart *AP_OpticalFlow_Pixart::detect(const char *devname, OpticalFlow &_frontend)
+AP_OpticalFlow_Pixart *AP_OpticalFlow_Pixart::detect(const char *devname, AP_OpticalFlow &_frontend)
 {
     AP_OpticalFlow_Pixart *sensor = new AP_OpticalFlow_Pixart(devname, _frontend);
     if (!sensor) {
@@ -329,7 +331,7 @@ void AP_OpticalFlow_Pixart::update(void)
     }
     last_update_ms = now;
 
-    struct OpticalFlow::OpticalFlow_state state;
+    struct AP_OpticalFlow::OpticalFlow_state state;
     state.surface_quality = burst.squal;
 
     if (integral.sum_us > 0) {

@@ -27,7 +27,11 @@ class ExpandingString;
 // on F7 and H7 we will try to save key persistent parameters at the
 // end of the bootloader sector. This enables temperature calibration
 // data to be saved persistently in the factory
-#define HAL_ENABLE_SAVE_PERSISTENT_PARAMS !defined(HAL_BOOTLOADER_BUILD) && !defined(HAL_BUILD_AP_PERIPH) && (defined(STM32F7) || defined(STM32H7))
+#define HAL_ENABLE_SAVE_PERSISTENT_PARAMS (defined(STM32F7) || defined(STM32H7))
+#endif
+
+#ifndef AP_BOOTLOADER_FLASHING_ENABLED
+#define AP_BOOTLOADER_FLASHING_ENABLED 0
 #endif
 
 class ChibiOS::Util : public AP_HAL::Util {
@@ -46,7 +50,7 @@ public:
 #ifdef ENABLE_HEAP
     // heap functions, note that a heap once alloc'd cannot be dealloc'd
     virtual void *allocate_heap_memory(size_t size) override;
-    virtual void *heap_realloc(void *heap, void *ptr, size_t new_size) override;
+    virtual void *heap_realloc(void *heap, void *ptr, size_t old_size, size_t new_size) override;
     virtual void *std_realloc(void *ptr, size_t new_size) override;
 #endif // ENABLE_HEAP
 
@@ -56,7 +60,7 @@ public:
     enum safety_state safety_switch_state(void) override;
 
     // get system ID as a string
-    bool get_system_id(char buf[40]) override;
+    bool get_system_id(char buf[50]) override;
     bool get_system_id_unformatted(uint8_t buf[], uint8_t &len) override;
 
     bool toneAlarm_init(uint8_t types) override;
@@ -126,7 +130,7 @@ private:
       get system clock in UTC microseconds
      */
     uint64_t get_hw_rtc() const override;
-#if !defined(HAL_NO_FLASH_SUPPORT) && !defined(HAL_NO_ROMFS_SUPPORT)
+#if AP_BOOTLOADER_FLASHING_ENABLED
     FlashBootloader flash_bootloader() override;
 #endif
 
@@ -146,10 +150,13 @@ private:
     // log info on stack usage
     void log_stack_info(void) override;
 
-#if !defined(HAL_BOOTLOADER_BUILD)
+#if AP_CRASHDUMP_ENABLED
     // get last crash dump
     size_t last_crash_dump_size() const override;
     void* last_crash_dump_ptr() const override;
 #endif
 
+#if HAL_ENABLE_DFU_BOOT
+    void boot_to_dfu() override;
+#endif
 };
