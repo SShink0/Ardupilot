@@ -66,6 +66,8 @@
 #define HAL_BOARD_SUBTYPE_ESP32_EMPTY           6004
 #define HAL_BOARD_SUBTYPE_ESP32_TOMTE76         6005
 #define HAL_BOARD_SUBTYPE_ESP32_NICK            6006
+#define HAL_BOARD_SUBTYPE_ESP32_IMU_MODULE_V11  6007
+
 
 /* InertialSensor driver types */
 #define HAL_INS_NONE         0

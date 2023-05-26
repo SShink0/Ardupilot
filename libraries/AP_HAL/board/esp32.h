@@ -13,6 +13,8 @@
 #include "esp32tomte76.h" //tomte76 on discord
 #elif CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_ESP32_NICK
 #include "esp32nick.h" //Nick K. on discord
+#elif CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_ESP32_IMU_MODULE_V11
+#include "esp32imu_module_v11.h" //makerfabs esp32 imu module v1.1
 #endif
 
 #define HAL_BOARD_NAME "ESP32"
