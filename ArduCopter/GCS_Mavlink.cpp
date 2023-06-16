@@ -358,6 +358,11 @@ bool GCS_MAVLINK_Copter::try_send_message(enum ap_message id)
         send_wind();
         break;
 
+    case MSG_MANUAL_CONTROL:
+        CHECK_PAYLOAD_SIZE(MANUAL_CONTROL);
+        send_manual_control();
+        break;
+
     case MSG_SERVO_OUT:
     case MSG_AOA_SSA:
     case MSG_LANDING:
@@ -522,6 +527,7 @@ static const ap_message STREAM_RC_CHANNELS_msgs[] = {
     MSG_SERVO_OUTPUT_RAW,
     MSG_RC_CHANNELS,
     MSG_RC_CHANNELS_RAW, // only sent on a mavlink1 connection
+    MSG_MANUAL_CONTROL,
 };
 static const ap_message STREAM_EXTRA1_msgs[] = {
     MSG_ATTITUDE,
@@ -1523,6 +1529,18 @@ void GCS_MAVLINK_Copter::send_wind() const
         degrees(atan2f(-wind.y, -wind.x)),
         wind.length(),
         wind.z);
+}
+
+void GCS_MAVLINK_Copter::send_manual_control() const
+{
+    mavlink_msg_manual_control_send(
+        chan,
+        1,
+        int16_t(copter.channel_pitch->norm_input()*1000.0f),
+        int16_t(copter.channel_roll->norm_input()*1000.0f),
+        int16_t(copter.channel_throttle->get_control_in()),
+        int16_t(copter.channel_yaw->norm_input()*1000.0f),
+        0);
 }
 
 #if HAL_HIGH_LATENCY2_ENABLED
