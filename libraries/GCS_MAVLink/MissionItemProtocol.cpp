@@ -29,13 +29,21 @@ void MissionItemProtocol::init_send_requests(GCS_MAVLINK &_link,
     mission_request_warning_sent = false;
 }
 
-void MissionItemProtocol::handle_mission_clear_all(const GCS_MAVLINK &_link,
+void MissionItemProtocol::handle_mission_clear_all(GCS_MAVLINK &_link,
                                                    const mavlink_message_t &msg)
 {
-    bool success = true;
-    success = success && !receiving;
-    success = success && clear_all_items();
-    send_mission_ack(_link, msg, success ? MAV_MISSION_ACCEPTED : MAV_MISSION_ERROR);
+    if (receiving) {
+        send_mission_ack(_link, msg, MAV_MISSION_ERROR);
+        return;
+    }
+    if (!clear_all_items()) {
+        send_mission_ack(_link, msg, MAV_MISSION_ERROR);
+        return;
+    }
+    link = &_link;
+    receiving = true;
+    timelast_receive_ms = AP_HAL::millis();
+    transfer_is_complete(_link, msg);
 }
 
 bool MissionItemProtocol::mavlink2_requirement_met(const GCS_MAVLINK &_link, const mavlink_message_t &msg) const
@@ -92,6 +100,9 @@ void MissionItemProtocol::handle_mission_count(
 
     if (packet.count == 0) {
         // no requests to send...
+        link = &_link;
+        receiving = true;
+        timelast_receive_ms = AP_HAL::millis();
         transfer_is_complete(_link, msg);
         return;
     }
@@ -119,11 +130,15 @@ void MissionItemProtocol::handle_mission_request_list(
     // reply with number of commands in the mission.  The GCS will
     // then request each command separately
     CHECK_PAYLOAD_SIZE2_VOID(_link.get_chan(), MISSION_COUNT);
+    uint32_t _opaque_id = 0;
+    UNUSED_RESULT(opaque_id(_opaque_id));
     mavlink_msg_mission_count_send(_link.get_chan(),
                                    msg.sysid,
                                    msg.compid,
                                    item_count(),
-                                   mission_type());
+                                   mission_type(),
+                                   _opaque_id
+        );
 }
 
 void MissionItemProtocol::handle_mission_request_int(GCS_MAVLINK &_link,
@@ -299,8 +314,23 @@ void MissionItemProtocol::handle_mission_item(const mavlink_message_t &msg, cons
 void MissionItemProtocol::transfer_is_complete(const GCS_MAVLINK &_link, const mavlink_message_t &msg)
 {
     const MAV_MISSION_RESULT result = complete(_link);
-    send_mission_ack(_link, msg, result);
     free_upload_resources();
+    uint32_t _opaque_id;
+    if (!receiving) {
+        INTERNAL_ERROR(AP_InternalError::error_t::flow_of_control);
+    }
+    if (supports_opaque_id() && !opaque_id(_opaque_id)) {
+        // the opaque ID can't currently be calculated; we definitely
+        // want to have it in the mission ack to avoid race
+        // conditions.  Defer sending the mission ack until it is
+        // available:
+        deferred_mission_ack.link = &_link;
+        deferred_mission_ack.sysid = msg.sysid;
+        deferred_mission_ack.compid = msg.compid;
+        deferred_mission_ack.opaque_id = 0;
+        return;
+    }
+    send_mission_ack(_link, msg, result);
     receiving = false;
     link = nullptr;
 }
@@ -318,12 +348,22 @@ void MissionItemProtocol::send_mission_ack(const GCS_MAVLINK &_link,
                                            const mavlink_message_t &msg,
                                            MAV_MISSION_RESULT result) const
 {
+    send_mission_ack(_link, msg.sysid, msg.compid, result);
+}
+void MissionItemProtocol::send_mission_ack(const GCS_MAVLINK &_link,
+                                           uint8_t sysid,
+                                           uint8_t compid,
+                                           MAV_MISSION_RESULT result) const
+{
     CHECK_PAYLOAD_SIZE2_VOID(_link.get_chan(), MISSION_ACK);
+    uint32_t _opaque_id = 0;
+    UNUSED_RESULT(opaque_id(_opaque_id));
     mavlink_msg_mission_ack_send(_link.get_chan(),
-                                 msg.sysid,
-                                 msg.compid,
+                                 sysid,
+                                 compid,
                                  result,
-                                 mission_type());
+                                 mission_type(),
+                                 _opaque_id);
 }
 
 /**
@@ -362,18 +402,22 @@ void MissionItemProtocol::update()
         INTERNAL_ERROR(AP_InternalError::error_t::gcs_bad_missionprotocol_link);
         return;
     }
+
+    const mavlink_channel_t chan = link->get_chan();
     // stop waypoint receiving if timeout
     const uint32_t tnow = AP_HAL::millis();
     if (tnow - timelast_receive_ms > upload_timeout_ms) {
         receiving = false;
         timeout();
-        const mavlink_channel_t chan = link->get_chan();
         if (HAVE_PAYLOAD_SPACE(chan, MISSION_ACK)) {
+            uint32_t _opaque_id = 0;
+            UNUSED_RESULT(opaque_id(_opaque_id));
             mavlink_msg_mission_ack_send(chan,
                                          dest_sysid,
                                          dest_compid,
                                          MAV_MISSION_OPERATION_CANCELLED,
-                                         mission_type());
+                                         mission_type(),
+                                         _opaque_id);
         }
         link = nullptr;
         free_upload_resources();
@@ -384,6 +428,20 @@ void MissionItemProtocol::update()
     if (tnow - timelast_request_ms > wp_recv_timeout_ms) {
         timelast_request_ms = tnow;
         link->send_message(next_item_ap_message_id());
+    }
+
+    // send any deferred transfer acceptance (to allow for
+    // asynchronous opaque-id calculation)
+    if (HAVE_PAYLOAD_SPACE(chan, MISSION_ACK) &&
+        deferred_mission_ack.link != nullptr &&
+        deferred_mission_ack.opaque_id != 0) {
+        send_mission_ack(*deferred_mission_ack.link,
+                         deferred_mission_ack.sysid,
+                         deferred_mission_ack.compid,
+                         MAV_MISSION_ACCEPTED);
+        deferred_mission_ack.link = nullptr;
+        receiving = false;
+        link = nullptr;
     }
 }
 
