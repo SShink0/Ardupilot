@@ -297,6 +297,10 @@ void AP_Periph_FW::init()
     ins.init(100);  // the loop rate here, 100,  is completely made up
 #endif
 
+#ifdef HAL_PERIPH_ENABLE_OPTICALFLOW
+    of_init();
+#endif
+
     start_ms = AP_HAL::millis();
 }
 
@@ -515,6 +519,10 @@ void AP_Periph_FW::update()
 
 #if HAL_LOGGING_ENABLED
     logger.periodic_tasks();
+#endif
+
+#ifdef HAL_PERIPH_ENABLE_OPTICALFLOW
+    of_update();
 #endif
 
     can_update();

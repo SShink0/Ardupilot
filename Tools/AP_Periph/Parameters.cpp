@@ -650,6 +650,12 @@ const AP_Param::Info AP_Periph_FW::var_info[] = {
     GOBJECT(relay,                 "RELAY", AP_Relay),
 #endif
 
+#ifdef HAL_PERIPH_ENABLE_OPTICALFLOW
+    // @Group: OF
+    // @Path: ../libraries/AP_OpticalFlow/AP_OpticalFlow.cpp
+    GOBJECT(of, "FLOW",   AP_OpticalFlow),
+#endif   // HAL_PERIPH_ENABLE_OPTICALFLOW
+
     AP_VAREND
 };
 
