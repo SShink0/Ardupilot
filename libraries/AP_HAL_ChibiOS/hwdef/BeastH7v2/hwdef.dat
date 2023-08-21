@@ -14,7 +14,7 @@ undef STM32_PWM_USE_ADVANCED
 undef I2C1
 
 # board ID for firmware load
-APJ_BOARD_ID 1056
+APJ_BOARD_ID AP_HW_BEASTH7v2
 
 # V2 has different motor mapping
 PB4 TIM3_CH1 TIM3 PWM(2) GPIO(51) BIDIR   # 2
