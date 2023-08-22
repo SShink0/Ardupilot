@@ -449,7 +449,41 @@ class Board:
                 CANARD_ALLOCATE_SEM=1
             )
 
+        if cfg.options.trusted_flight_issuer and cfg.options.trusted_flight_root_certificate:
+            # prepare a temp file to embed issuer string into ROMFS
+            with open('/tmp/trusted_flight_issuer.tmp', 'w') as f:
+                f.write(cfg.options.trusted_flight_issuer.strip())
 
+            env.ROMFS_FILES += [
+                ('trusted_flight/root_ca.crt', cfg.options.trusted_flight_root_certificate),
+                ('trusted_flight/token_issuer', '/tmp/trusted_flight_issuer.tmp')
+            ]
+
+            env.AP_LIBRARIES += [
+                'modules/trusted_flight/src/*.c',
+                'modules/trusted_flight/lib/mbedtls/library/*c',
+                'AP_AerobridgeTrustedFlight'
+            ]
+
+            env.INCLUDES += [
+                cfg.srcnode.find_dir('modules/trusted_flight/include/').abspath(),
+                cfg.srcnode.find_dir('modules/trusted_flight/lib/checknum/include/').abspath(),
+                cfg.srcnode.find_dir('modules/trusted_flight/lib/chillbuff/include/').abspath(),
+                cfg.srcnode.find_dir('modules/trusted_flight/lib/jsmn/').abspath(),
+                cfg.srcnode.find_dir('modules/trusted_flight/lib/mbedtls/include/').abspath(),
+                cfg.srcnode.find_dir('modules/trusted_flight/lib/mbedtls/library/').abspath()
+            ]
+
+            env.GIT_SUBMODULES += ['trusted_flight']
+
+            env.CXXFLAGS += ['-DL8W8JWT_SMALL_STACK=1']
+            env.CXXFLAGS += ['-DAP_AEROBRIDGE_TRUSTED_FLIGHT_ENABLED']
+        elif cfg.options.trusted_flight_issuer or cfg.options.trusted_flight_root_certificate:
+            from waflib import Logs
+            msg = "Trusted Flight Issuer or Trusted Flight Root Certificate not provided. Please provide both to enable Trusted Flights feature or none to disable the feature."
+            Logs.pprint('RED', msg)
+            exit (1)
+    
         if cfg.options.build_dates:
             env.build_dates = True
 
