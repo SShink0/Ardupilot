@@ -40,6 +40,8 @@ public:
 
     void update_esc_telem_outbound();
 
+    void Log_RPM() const;
+
 protected:
 
     AP_RPM &ap_rpm;
