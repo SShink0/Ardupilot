@@ -26,6 +26,7 @@
 #include "AP_ExternalAHRS_MicroStrain5.h"
 #include "AP_ExternalAHRS_MicroStrain7.h"
 #include "AP_ExternalAHRS_InertialLabs.h"
+#include "AP_ExternalAHRS_CINS.h"
 
 #include <GCS_MAVLink/GCS.h>
 #include <AP_AHRS/AP_AHRS.h>
@@ -127,6 +128,12 @@ void AP_ExternalAHRS::init(void)
 #if AP_EXTERNAL_AHRS_INERTIAL_LABS_ENABLED
     case DevType::InertialLabs:
         backend = new AP_ExternalAHRS_InertialLabs(this, state);
+        return;
+#endif
+
+#if AP_EXTERNAL_AHRS_CINS_ENABLED
+    case DevType::CINS:
+        backend = new AP_ExternalAHRS_CINS(this, state);
         return;
 #endif
 
