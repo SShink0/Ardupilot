@@ -585,7 +585,7 @@ public:
     void *mode_flowhold_ptr;
 #endif
 
-#if MODE_FOLLOW_ENABLED == ENABLED
+#if AP_FOLLOW_ENABLED
     // follow
     AP_Follow follow;
 #endif
