@@ -3948,14 +3948,18 @@ void GCS_MAVLINK::handle_common_message(const mavlink_message_t &msg)
 #endif
 
 #if HAL_MOUNT_ENABLED
+#if AP_MAVLINK_MSG_MOUNT_CONFIGURE_ENABLED
     case MAVLINK_MSG_ID_MOUNT_CONFIGURE: // deprecated. Use MAV_CMD_DO_MOUNT_CONFIGURE
         send_received_message_deprecation_warning("MOUNT_CONFIGURE");
         handle_mount_message(msg);
         break;
+#endif
+#if AP_MAVLINK_MSG_MOUNT_CONTROL_ENABLED
     case MAVLINK_MSG_ID_MOUNT_CONTROL: // deprecated. Use MAV_CMD_DO_MOUNT_CONTROL
         send_received_message_deprecation_warning("MOUNT_CONTROL");
         handle_mount_message(msg);
         break;
+#endif
     case MAVLINK_MSG_ID_GIMBAL_REPORT:
     case MAVLINK_MSG_ID_GIMBAL_DEVICE_INFORMATION:
     case MAVLINK_MSG_ID_GIMBAL_DEVICE_ATTITUDE_STATUS:
@@ -4839,15 +4843,6 @@ MAV_RESULT GCS_MAVLINK::handle_command_long_packet(const mavlink_command_long_t 
         result = handle_command_request_message(packet);
         break;
 
-#if AP_SERVORELAYEVENTS_ENABLED
-    case MAV_CMD_DO_SET_SERVO:
-    case MAV_CMD_DO_REPEAT_SERVO:
-    case MAV_CMD_DO_SET_RELAY:
-    case MAV_CMD_DO_REPEAT_RELAY:
-        result = handle_servorelay_message(packet);
-        break;
-#endif
-
     case MAV_CMD_DO_FLIGHTTERMINATION:
         result = handle_flight_termination(packet);
         break;
@@ -5142,6 +5137,14 @@ MAV_RESULT GCS_MAVLINK::handle_command_int_packet(const mavlink_command_int_t &p
     case MAV_CMD_DO_ACCEPT_MAG_CAL:
     case MAV_CMD_DO_CANCEL_MAG_CAL:
         return handle_command_mag_cal(packet);
+#endif
+
+#if AP_SERVORELAYEVENTS_ENABLED
+    case MAV_CMD_DO_SET_SERVO:
+    case MAV_CMD_DO_REPEAT_SERVO:
+    case MAV_CMD_DO_SET_RELAY:
+    case MAV_CMD_DO_REPEAT_RELAY:
+        return handle_servorelay_message(packet);
 #endif
 
 #if AP_SCRIPTING_ENABLED
