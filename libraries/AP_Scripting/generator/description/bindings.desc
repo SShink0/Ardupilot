@@ -766,3 +766,7 @@ singleton mavlink manual register_rx_msgid lua_mavlink_register_rx_msgid 1
 singleton mavlink manual send_chan lua_mavlink_send_chan 3
 singleton mavlink manual receive_chan lua_mavlink_receive_chan 0
 singleton mavlink manual block_command lua_mavlink_block_command 1
+
+include AP_RTC/AP_RTC.h
+singleton AP_RTC rename rtc 
+singleton AP_RTC method get_date_and_time_utc boolean uint16_t'Null uint8_t'Null uint8_t'Null uint8_t'Null uint8_t'Null uint8_t'Null uint16_t'Null

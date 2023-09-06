@@ -598,6 +598,24 @@ function Parameter_ud:init(name) end
 
 
 -- desc
+---@class rtc
+rtc = {}
+
+-- desc
+-- fills in year, month, day, hour, min, sec and ms
+-- year is the regular Gregorian year, month is 0~11, day is 1~31, hour is 0~23, minute is 0~59, second is 0~60 (1 leap second), ms is 0~999
+-- values are nil if there is no valid time source 
+-- usage : year, month, day, hour, min, sec, ms = rtc:get_date_and_time_utc()
+---@return integer|nil -- year
+---@return integer|nil -- month 0-11
+---@return integer|nil -- day
+---@return integer|nil -- hour
+---@return integer|nil -- minute
+---@return integer|nil -- second
+---@return integer|nil -- millisecond
+function rtc:get_date_and_time_utc() end
+
+-- desc
 ---@class Vector2f_ud
 local Vector2f_ud = {}
 
