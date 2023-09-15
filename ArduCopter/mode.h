@@ -1345,9 +1345,18 @@ public:
     // enum for RTL_ALT_TYPE parameter
     enum class RTLAltType : int8_t {
         RTL_ALTTYPE_RELATIVE = 0,
-        RTL_ALTTYPE_TERRAIN = 1
+        RTL_ALTTYPE_TERRAIN = 1,
+        RTL_ALTTYPE_ABSOLUTE = 2,
     };
     ModeRTL::RTLAltType get_alt_type() const;
+
+    // return target alt type
+    enum class ReturnTargetAltType {
+        RELATIVE = 0,
+        RANGEFINDER = 1,
+        TERRAINDATABASE = 2,
+        ABSOLUTE = 3,
+    };
 
 protected:
 
@@ -1375,6 +1384,7 @@ private:
     void loiterathome_run();
     void build_path();
     void compute_return_target();
+    Location::AltFrame convert_ReturnTargetAltType_to_AltFrame(ModeRTL::ReturnTargetAltType alt_type);
 
     SubMode _state = SubMode::INITIAL_CLIMB;  // records state of rtl (initial climb, returning home, etc)
     bool _state_complete = false; // set to true if the current state is completed
@@ -1387,13 +1397,6 @@ private:
         Location descent_target;
         bool land;
     } rtl_path;
-
-    // return target alt type
-    enum class ReturnTargetAltType {
-        RELATIVE = 0,
-        RANGEFINDER = 1,
-        TERRAINDATABASE = 2
-    };
 
     // Loiter timer - Records how long we have been in loiter
     uint32_t _loiter_start_time;
