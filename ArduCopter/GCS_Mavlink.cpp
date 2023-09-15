@@ -1167,8 +1167,22 @@ void GCS_MAVLINK_Copter::handleMessage(const mavlink_message_t &msg)
             // this limit is somewhat greater than sqrt(FLT_EPSL)
             if (!attitude_quat.is_unit_length()) {
                 // The attitude quaternion is ill-defined
+                // input is not valid so stop
+                copter.mode_guided.init(true);
                 break;
             }
+        }
+
+        Vector3f ang_vel_body;
+        if (!roll_rate_ignore && !pitch_rate_ignore && !yaw_rate_ignore) {
+            ang_vel_body.x = packet.body_roll_rate;
+            ang_vel_body.y = packet.body_pitch_rate;
+            ang_vel_body.z = packet.body_yaw_rate;
+        } else if (!(roll_rate_ignore && pitch_rate_ignore && yaw_rate_ignore)) {
+            // The body rates are ill-defined
+            // input is not valid so stop
+            copter.mode_guided.init(true);
+            break;
         }
 
         // check if the message's thrust field should be interpreted as a climb rate or as thrust
@@ -1192,18 +1206,7 @@ void GCS_MAVLINK_Copter::handleMessage(const mavlink_message_t &msg)
             }
         }
 
-        Vector3f ang_vel;
-        if (!roll_rate_ignore) {
-            ang_vel.x = packet.body_roll_rate;
-        }
-        if (!pitch_rate_ignore) {
-            ang_vel.y = packet.body_pitch_rate;
-        }
-        if (!yaw_rate_ignore) {
-            ang_vel.z = packet.body_yaw_rate;
-        }
-
-        copter.mode_guided.set_angle(attitude_quat, ang_vel,
+        copter.mode_guided.set_angle(attitude_quat, ang_vel_body,
                 climb_rate_or_thrust, use_thrust);
 
         break;
