@@ -13069,6 +13069,46 @@ switch value'''
             if distance > 1:
                 raise NotAchievedException("gps type %u misbehaving" % name)
 
+    def EAHRSGPSTypes(self):
+        '''check each AHRS GPS sensor works'''
+        self.reboot_sitl()
+        # (AHRS_EKF_TYPE, EAHRS_TYPE, detect_name, EAHRS_OPTIONS, uart_sim_name)
+        sim_ahrs = [
+            (11, 1, "VectorNAV", 0, "VectorNav"), # VN300 only, VN100 is skipped for this test
+            (11, 2, "MicroStrain", 0, "MicroStrain"),
+        ]
+        for (ahrs_ekf_type, eahrs_type, detect_name, eahrs_options, uart_sim_name) in sim_ahrs:
+            self.customise_SITL_commandline(["--uartE=sim:%s" % uart_sim_name])
+            orig = self.poll_home_position(timeout=60)
+            self.start_subtest("Checking GPS type %s" % detect_name)
+
+            SERIAL_PROTOCOL_EAHRS = 36
+            SERIAL_BAUD = 115
+            GPS_TYPE_EAHRS = 21
+            params = {
+                "SERIAL4_PROTOCOL": SERIAL_PROTOCOL_EAHRS,
+                "SERIAL4_BAUD": SERIAL_BAUD,
+                "GPS_TYPE": GPS_TYPE_EAHRS,
+                "AHRS_EKF_TYPE": ahrs_ekf_type,
+                "EAHRS_TYPE": eahrs_type,
+                "EAHRS_OPTIONS": eahrs_options,
+            }
+
+            # VN-300 Specific Setup
+            if detect_name == "VectorNAV":
+                params.update({"GPS_TYPE2": GPS_TYPE_EAHRS})
+
+            self.set_parameters(params)
+
+            self.context_collect("STATUSTEXT")
+            self.reboot_sitl()
+            self.wait_statustext("%s ExternalAHRS initialised" % (detect_name), check_context=True, timeout=30)
+            n = self.poll_home_position(timeout=120)
+            distance = self.get_distance_int(orig, n)
+            if distance > 1:
+                raise NotAchievedException("gps type %u misbehaving" % detect_name)
+            self.wait_ready_to_arm()
+
     def assert_gps_satellite_count(self, messagename, count):
         m = self.assert_receive_message(messagename)
         if m.satellites_visible != count:
