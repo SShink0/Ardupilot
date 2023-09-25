@@ -80,11 +80,6 @@
 #define AP_SERIALMANAGER_GPS_BUFSIZE_RX         256
 #define AP_SERIALMANAGER_GPS_BUFSIZE_TX         16
 
-// AlexMos Gimbal protocol default baud rates and buffer sizes
-#define AP_SERIALMANAGER_ALEXMOS_BAUD           115200
-#define AP_SERIALMANAGER_ALEXMOS_BUFSIZE_RX     128
-#define AP_SERIALMANAGER_ALEXMOS_BUFSIZE_TX     128
-
 #define AP_SERIALMANAGER_GIMBAL_BAUD            115200
 #define AP_SERIALMANAGER_GIMBAL_BUFSIZE_RX      128
 #define AP_SERIALMANAGER_GIMBAL_BUFSIZE_TX      128
@@ -213,6 +208,8 @@ public:
 
     // accessors for AP_Periph to set baudrate and type
     void set_protocol_and_baud(uint8_t sernum, enum SerialProtocol protocol, uint32_t baudrate);
+
+    void set_default_baud(enum SerialProtocol protocol, uint8_t instance, uint32_t _baud);
 
     static uint32_t map_baudrate(int32_t rate);
 
