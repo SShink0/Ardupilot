@@ -104,3 +104,13 @@ int16_t char_to_hex(char a)
     else
         return a - '0';
 }
+
+int16_t offset_of_byte_in_buffer(uint8_t byte, const uint8_t *buffer, uint16_t buffer_len)
+{
+    const uint8_t *p = (const uint8_t *)memchr(buffer, byte, buffer_len);
+    if (p == nullptr) {
+        // preamble not found
+        return -1;
+    }
+    return p - buffer;
+}
