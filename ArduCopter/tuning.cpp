@@ -11,8 +11,13 @@ void Copter::tuning()
 {
     const RC_Channel *rc_tuning = rc().find_channel_for_option(RC_Channel::AUX_FUNC::TRANSMITTER_TUNING);
 
-    // exit immediately if the tuning function is not set or min and max are both zero or tuning channel is not set
-    if ((g.radio_tuning <= 0) || (is_zero(g2.tuning_min.get()) && is_zero(g2.tuning_max.get())) || rc_tuning == nullptr) {
+    // exit immediately if tuning channel is not set
+    if (rc_tuning == nullptr) {
+        return;
+    }
+    
+    // exit immediately if the tuning function is not set or min and max are both zero
+    if ((g.radio_tuning <= 0) || (is_zero(g2.tuning_min.get()) && is_zero(g2.tuning_max.get()))) {
         return;
     }
 
