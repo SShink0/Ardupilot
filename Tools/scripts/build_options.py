@@ -348,8 +348,7 @@ BUILD_OPTIONS = [
     Feature('Precision Landing', 'PrecLand', 'AC_PRECLAND_ENABLED', 'Enable Precision Landing support', 0, None),
     Feature('Precision Landing', 'PrecLand - Companion', 'AC_PRECLAND_COMPANION_ENABLED', 'Enable Companion-Supported Precision Landing support', 0, "PrecLand"),  # noqa
     Feature('Precision Landing', 'PrecLand - IRLock', 'AC_PRECLAND_IRLOCK_ENABLED', 'Enable IRLock-Supported Precision Landing support', 0, "PrecLand"),  # noqa
-    Feature('Precision Landing', 'PrecLand - SITL_GAZEBO', 'AC_PRECLAND_SITL_GAZEBO_ENABLED', 'Enable SITL-GAZEBO Precision Landing support', 0, "PrecLand"),
-    Feature('Precision Landing', 'PrecLand - SITL', 'AC_PRECLAND_SITL_ENABLED', 'Enable SITL Precision Landing support', 0, "PrecLand"),
+
     #    Feature('Filesystem', 'FILESYSTEM_ESP32_ENABLED', 'AP_FILESYSTEM_ESP32_ENABLED', 'Enable ESP32 Filesystem', 0, None),
     # Feature('Filesystem', 'FILESYSTEM_FATFS', 'AP_FILESYSTEM_FATFS_ENABLED', 'Enable FATFS Filesystem', 0, None),
     Feature('Filesystem', 'FILESYSTEM_MISSION', 'AP_FILESYSTEM_MISSION_ENABLED', 'Enable @MISSION/ filesystem', 0, None),
@@ -357,6 +356,11 @@ BUILD_OPTIONS = [
     #    Feature('Filesystem', 'FILESYSTEM_POSIX', 'AP_FILESYSTEM_POSIX_ENABLED', 'Enable POSIX filesystem', 0, None),
     Feature('Filesystem', 'FILESYSTEM_ROMFS', 'AP_FILESYSTEM_ROMFS_ENABLED', 'Enable @ROMFS/ filesystem', 0, None),
     Feature('Filesystem', 'FILESYSTEM_SYS', 'AP_FILESYSTEM_SYS_ENABLED', 'Enable @SYS/ filesystem', 0, None),
+
+    Feature('Winch Support', 'Ap_Winch', 'AP_WINCH_ENABLED', 'Enable Winch support', 0, None),
+    Feature('Winch Support', 'Ap_Winch', 'AP_WINCH_DAIWA_ENABLED', 'Enable DAIWA Winch support', 0, None),
+    Feature('Winch Support', 'Ap_Winch', 'AP_WINCH_PWM_ENABLED', 'Enable PWM Winch support', 0, None),
+
 ]
 
 BUILD_OPTIONS.sort(key=lambda x: (x.category + x.label))
