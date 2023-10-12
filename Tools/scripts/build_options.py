@@ -1,7 +1,7 @@
 '''
 Provide structured data understood by the CustomBuild server app.py
 
-AP_FLAKE8_CLEAN 
+AP_FLAKE8_CLEAN
 
 '''
 
