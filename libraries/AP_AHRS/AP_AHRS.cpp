@@ -1093,7 +1093,7 @@ bool AP_AHRS::_get_quaternion(Quaternion &quat) const
     switch (active_EKF_type()) {
 #if AP_AHRS_DCM_ENABLED
     case EKFType::DCM:
-        if (!dcm.get_quaternion(quat)) {
+        if (!dcm_estimates.get_quaternion(quat)) {
             return false;
         }
         break;
@@ -1116,7 +1116,7 @@ bool AP_AHRS::_get_quaternion(Quaternion &quat) const
 #endif
 #if AP_AHRS_SIM_ENABLED
     case EKFType::SIM:
-        if (!sim.get_quaternion(quat)) {
+        if (!sim_estimates.get_quaternion(quat)) {
             return false;
         }
         break;
@@ -1124,7 +1124,7 @@ bool AP_AHRS::_get_quaternion(Quaternion &quat) const
 #if HAL_EXTERNAL_AHRS_ENABLED
     case EKFType::EXTERNAL:
         // we assume the external AHRS isn't trimmed with the autopilot!
-        return external.get_quaternion(quat);
+        return external_estimates.get_quaternion(quat);
 #endif
     }
 
@@ -1202,7 +1202,7 @@ bool AP_AHRS::_get_secondary_quaternion(Quaternion &quat) const
 #if AP_AHRS_DCM_ENABLED
     case EKFType::DCM:
         // DCM is secondary
-        if (!dcm.get_quaternion(quat)) {
+        if (!dcm_estimates.get_quaternion(quat)) {
             return false;
         }
         break;
@@ -1237,7 +1237,7 @@ bool AP_AHRS::_get_secondary_quaternion(Quaternion &quat) const
 #if HAL_EXTERNAL_AHRS_ENABLED
     case EKFType::EXTERNAL:
         // External is secondary
-        return external.get_quaternion(quat);
+        return external_estimates.get_quaternion(quat);
 #endif
     }
 
