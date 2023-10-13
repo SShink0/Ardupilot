@@ -73,14 +73,6 @@ public:
     // init sets up INS board orientation
     virtual void init();
 
-    // return the index of the primary core or -1 if no primary core selected
-    virtual int8_t get_primary_core_index() const { return -1; }
-
-    // get the index of the current primary accelerometer sensor
-    virtual uint8_t get_primary_accel_index(void) const {
-        return AP::ins().get_primary_accel();
-    }
-
     // get the index of the current primary gyro sensor
     virtual uint8_t get_primary_gyro_index(void) const {
         return AP::ins().get_primary_gyro();
