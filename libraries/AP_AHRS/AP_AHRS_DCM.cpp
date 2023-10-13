@@ -105,6 +105,8 @@ AP_AHRS_DCM::update()
 
 void AP_AHRS_DCM::get_results(AP_AHRS_Backend::Estimates &results)
 {
+    results = {};
+
     results.roll_rad = roll;
     results.pitch_rad = pitch;
     results.yaw_rad = yaw;
@@ -115,6 +117,17 @@ void AP_AHRS_DCM::get_results(AP_AHRS_Backend::Estimates &results)
     results.gyro_estimate = _omega;
     results.gyro_drift = _omega_I;
     results.accel_ef = _accel_ef;
+
+    // NED velocity only valid if we have GPS lock:
+    const AP_GPS &_gps = AP::gps();
+    if (_gps.status() >= AP_GPS::GPS_OK_FIX_3D) {
+        results.velocity_NED = _gps.velocity();
+        results.velocity_NED_valid = true;
+        // and a supposedly-kinematically-consistent vertical position
+        // rate:
+        results.vert_pos_rate_D = results.velocity_NED.z;
+        results.vert_pos_rate_D_valid = true;
+    }
 
     results.location_valid = get_location(results.location);
 }
@@ -1121,19 +1134,6 @@ bool AP_AHRS_DCM::healthy(void) const
     return (_last_failure_ms == 0 || AP_HAL::millis() - _last_failure_ms > 5000);
 }
 
-/*
-  return NED velocity if we have GPS lock
- */
-bool AP_AHRS_DCM::get_velocity_NED(Vector3f &vec) const
-{
-    const AP_GPS &_gps = AP::gps();
-    if (_gps.status() < AP_GPS::GPS_OK_FIX_3D) {
-        return false;
-    }
-    vec = _gps.velocity();
-    return true;
-}
-
 // return a ground speed estimate in m/s
 Vector2f AP_AHRS_DCM::groundspeed_vector(void)
 {
@@ -1200,18 +1200,6 @@ Vector2f AP_AHRS_DCM::groundspeed_vector(void)
     }
 
     return Vector2f(0.0f, 0.0f);
-}
-
-// Get a derivative of the vertical position in m/s which is kinematically consistent with the vertical position is required by some control loops.
-// This is different to the vertical velocity from the EKF which is not always consistent with the vertical position due to the various errors that are being corrected for.
-bool AP_AHRS_DCM::get_vert_pos_rate_D(float &velocity) const
-{
-    Vector3f velned;
-    if (!get_velocity_NED(velned)) {
-        return false;
-    }
-    velocity = velned.z;
-    return true;
 }
 
 // returns false if we fail arming checks, in which case the buffer will be populated with a failure message
