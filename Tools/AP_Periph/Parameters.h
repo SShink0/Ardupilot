@@ -70,6 +70,27 @@ public:
         k_param_proximity_port,
         k_param_proximity_max_rate,
         k_param_nmea,
+        k_param_serial_chan_id0,
+        k_param_serial_chan_id1,
+        k_param_serial_chan_id2,
+        k_param_serial_chan_id3,
+        k_param_serial_chan_id4,
+        k_param_serial_chan_id5,
+        k_param_serial_chan_id6,
+        k_param_serial_chan_id7,
+        k_param_serial_chan_id8,
+        k_param_serial_chan_id9,
+        k_param_serial_auto_passthrough_select,
+        k_param_serial_buffer_us0,
+        k_param_serial_buffer_us1,
+        k_param_serial_buffer_us2,
+        k_param_serial_buffer_us3,
+        k_param_serial_buffer_us4,
+        k_param_serial_buffer_us5,
+        k_param_serial_buffer_us6,
+        k_param_serial_buffer_us7,
+        k_param_serial_buffer_us8,
+        k_param_serial_buffer_us9,
     };
 
     AP_Int16 format_version;
@@ -168,6 +189,12 @@ public:
     AP_Int8 can_fdbaudrate[HAL_NUM_CAN_IFACES];
 #else
     static constexpr uint8_t can_fdmode = 0;
+#endif
+
+#if HAL_ENABLE_SERIAL_TUNNEL
+    AP_Int8 serial_chan_id[SERIALMANAGER_NUM_UART_PORTS];
+    AP_Int32 serial_buffer_us[SERIALMANAGER_NUM_UART_PORTS];
+    AP_Int8 serial_auto_passthrough_select;
 #endif
     Parameters() {}
 };

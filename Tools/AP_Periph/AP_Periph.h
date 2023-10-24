@@ -23,6 +23,7 @@
 #include <AP_Scripting/AP_Scripting.h>
 #include <AP_HAL/CANIface.h>
 #include <AP_Stats/AP_Stats.h>
+#include "AP_DroneCAN_Serial.h"
 
 
 #include <AP_NMEA_Output/AP_NMEA_Output.h>
@@ -67,6 +68,11 @@ extern const app_descriptor_t app_descriptor;
 
 extern "C" {
 void can_printf(const char *fmt, ...) FMT_PRINTF(1,2);
+int16_t canard_broadcast(uint64_t data_type_signature,
+                                uint16_t data_type_id,
+                                uint8_t priority,
+                                const void* payload,
+                                uint16_t payload_len);
 }
 
 class AP_Periph_FW {
@@ -311,6 +317,15 @@ public:
 
     static bool no_iface_finished_dna;
     static constexpr auto can_printf = ::can_printf;
+
+    // UAVCAN Serial for passthrough
+#if HAL_ENABLE_SERIAL_TUNNEL
+    AP_DroneCAN_Serial *dronecan_serial[SERIALMANAGER_NUM_UART_PORTS];
+#endif
+
+#if HAL_CANARD_BROADCAST_THREAD_SAFE
+    HAL_Semaphore broadcast_sem;
+#endif
 };
 
 namespace AP

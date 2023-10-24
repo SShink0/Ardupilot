@@ -440,6 +440,9 @@ const AP_Param::Info AP_Periph_FW::var_info[] = {
     // @Range: 1 255
     // @User: Advanced
     GSCALAR(sysid_this_mav,         "SYSID_THISMAV",  MAV_SYSTEM_ID),
+#endif
+
+#if AP_SERIAL_EXTENSION_ENABLED || HAL_GCS_ENABLED
 
     // @Group: SERIAL
     // @Path: ../libraries/AP_SerialManager/AP_SerialManager.cpp
@@ -523,6 +526,193 @@ const AP_Param::Info AP_Periph_FW::var_info[] = {
     GOBJECT(nmea, "NMEA_",   AP_NMEA_Output),
 #endif
 
+#if HAL_ENABLE_SERIAL_TUNNEL
+    // @Param: SERIAL0_CHAN_ID
+    // @DisplayName: Serial0 UAVCAN Tunnel Channel ID
+    // @Description: This is the UAVCAN channel ID for the Serial0 UAVCAN Tunnel
+    // @Range: -1 127
+    // @Increment: 1
+    // @User: Advanced
+    // @RebootRequired: True
+    GARRAY(serial_chan_id, 0, "SERIAL0_CHAN_ID", -1),
+
+    // @Param: SERIAL0_BUF_US
+    // @DisplayName: Serial0 UAVCAN Tunnel Buffer Time
+    // @Description: This is the buffer time for which the message is buffer before forwarding to the Serial0
+    // @Range: 0 1000000
+    // @Increment: 1
+    // @User: Advanced
+    GARRAY(serial_buffer_us, 0, "SERIAL0_BUF_US", 0),
+
+#if SERIALMANAGER_NUM_UART_PORTS > 1
+    // @Param: SERIAL1_CHAN_ID
+    // @DisplayName: Serial1 UAVCAN Tunnel Channel ID
+    // @Description: This is the UAVCAN Tunnel channel ID for the serial1 port
+    // @Range: -1 127
+    // @Increment: 1
+    // @User: Advanced
+    GARRAY(serial_chan_id, 1, "SERIAL1_CHAN_ID", -1),
+
+    // @Param: SERIAL1_BUF_US
+    // @DisplayName: Serial1 UAVCAN Tunnel Buffer Time
+    // @Description: This is the buffer time for which the message is buffer before forwarding to the Serial1
+    // @Range: 0 1000000
+    // @Increment: 1
+    // @User: Advanced
+    GARRAY(serial_buffer_us, 1, "SERIAL1_BUF_US", 0),
+#endif
+
+#if SERIALMANAGER_NUM_UART_PORTS > 2
+    // @Param: SERIAL2_CHAN_ID
+    // @DisplayName: Serial2 UAVCAN Tunnel Channel ID
+    // @Description: This is the UAVCAN Tunnel channel ID for the serial2 port
+    // @Range: -1 127
+    // @Increment: 1
+    // @User: Advanced
+    GARRAY(serial_chan_id, 2, "SERIAL2_CHAN_ID", -1),
+
+    // @Param: SERIAL2_BUF_US
+    // @DisplayName: Serial2 UAVCAN Tunnel Buffer Time
+    // @Description: This is the buffer time for which the message is buffer before forwarding to the Serial2
+    // @Range: 0 1000000
+    // @Increment: 1
+    // @User: Advanced
+    GARRAY(serial_buffer_us, 2, "SERIAL2_BUF_US", 0),
+#endif
+
+#if SERIALMANAGER_NUM_UART_PORTS > 3
+    // @Param: SERIAL3_CHAN_ID
+    // @DisplayName: Serial3 UAVCAN Tunnel Channel ID
+    // @Description: This is the UAVCAN Tunnel channel ID for the serial3 port
+    // @Range: -1 127
+    // @Increment: 1
+    // @User: Advanced
+    GARRAY(serial_chan_id, 3, "SERIAL3_CHAN_ID", -1),
+
+    // @Param: SERIAL3_BUF_US
+    // @DisplayName: Serial3 UAVCAN Tunnel Buffer Time
+    // @Description: This is the buffer time for which the message is buffer before forwarding to the Serial3
+    // @Range: 0 1000000
+    // @Increment: 1
+    // @User: Advanced
+    GARRAY(serial_buffer_us, 3, "SERIAL3_BUF_US", 0),
+#endif
+
+#if SERIALMANAGER_NUM_UART_PORTS > 4
+    // @Param: SERIAL4_CHAN_ID
+    // @DisplayName: Serial4 UAVCAN Tunnel Channel ID
+    // @Description: This is the UAVCAN Tunnel channel ID for the serial4 port
+    // @Range: -1 127
+    // @Increment: 1
+    // @User: Advanced
+    GARRAY(serial_chan_id, 4, "SERIAL4_CHAN_ID", -1),
+
+    // @Param: SERIAL4_BUF_US
+    // @DisplayName: Serial4 UAVCAN Tunnel Buffer Time
+    // @Description: This is the buffer time for which the message is buffer before forwarding to the Serial4
+    // @Range: 0 1000000
+    // @Increment: 1
+    // @User: Advanced
+    GARRAY(serial_buffer_us, 4, "SERIAL4_BUF_US", 0),
+#endif
+
+#if SERIALMANAGER_NUM_UART_PORTS > 5
+    // @Param: SERIAL5_CHAN_ID
+    // @DisplayName: Serial5 UAVCAN Tunnel Channel ID
+    // @Description: This is the UAVCAN Tunnel channel ID for the serial5 port
+    // @Range: -1 127
+    // @Increment: 1
+    // @User: Advanced
+    GARRAY(serial_chan_id, 5, "SERIAL5_CHAN_ID", -1),
+
+    // @Param: SERIAL5_BUF_US
+    // @DisplayName: Serial5 UAVCAN Tunnel Buffer Time
+    // @Description: This is the buffer time for which the message is buffer before forwarding to the Serial5
+    // @Range: 0 1000000
+    // @Increment: 1
+    // @User: Advanced
+    GARRAY(serial_buffer_us, 5, "SERIAL5_BUF_US", 0),
+#endif
+
+#if SERIALMANAGER_NUM_UART_PORTS > 6
+    // @Param: SERIAL6_CHAN_ID
+    // @DisplayName: Serial6 UAVCAN Tunnel Channel ID
+    // @Description: This is the UAVCAN Tunnel channel ID for the serial6 port
+    // @Range: -1 127
+    // @Increment: 1
+    // @User: Advanced
+    GARRAY(serial_chan_id, 6, "SERIAL6_CHAN_ID", -1),
+
+    // @Param: SERIAL6_BUF_US
+    // @DisplayName: Serial6 UAVCAN Tunnel Buffer Time
+    // @Description: This is the buffer time for which the message is buffer before forwarding to the Serial6
+    // @Range: 0 1000000
+    // @Increment: 1
+    // @User: Advanced
+    GARRAY(serial_buffer_us, 6, "SERIAL6_BUF_US", 0),
+#endif
+
+#if SERIALMANAGER_NUM_UART_PORTS > 7
+    // @Param: SERIAL7_CHAN_ID
+    // @DisplayName: Serial7 UAVCAN Tunnel Channel ID
+    // @Description: This is the UAVCAN Tunnel channel ID for the serial7 port
+    // @Range: -1 127
+    // @Increment: 1
+    // @User: Advanced
+    GARRAY(serial_chan_id, 7, "SERIAL7_CHAN_ID", -1),
+
+    // @Param: SERIAL7_BUF_US
+    // @DisplayName: Serial7 UAVCAN Tunnel Buffer Time
+    // @Description: This is the buffer time for which the message is buffer before forwarding to the Serial7
+    // @Range: 0 1000000
+    // @Increment: 1
+    // @User: Advanced
+    GARRAY(serial_buffer_us, 7, "SERIAL7_BUF_US", 0),
+#endif
+
+#if SERIALMANAGER_NUM_UART_PORTS > 8
+    // @Param: SERIAL8_CHAN_ID
+    // @DisplayName: Serial8 UAVCAN Tunnel Channel ID
+    // @Description: This is the UAVCAN Tunnel channel ID for the serial8 port
+    // @Range: -1 127
+    // @Increment: 1
+    // @User: Advanced
+    GARRAY(serial_chan_id, 8, "SERIAL8_CHAN_ID", -1),
+
+    // @Param: SERIAL8_BUF_US
+    // @DisplayName: Serial8 UAVCAN Tunnel Buffer Time
+    // @Description: This is the buffer time for which the message is buffer before forwarding to the Serial8
+    // @Range: 0 1000000
+    // @Increment: 1
+    // @User: Advanced
+    GARRAY(serial_buffer_us, 8, "SERIAL8_BUF_US", 0),
+#endif
+
+#if SERIALMANAGER_NUM_UART_PORTS > 9
+    // @Param: SERIAL9_CHAN_ID
+    // @DisplayName: Serial9 UAVCAN Tunnel Channel ID
+    // @Description: This is the UAVCAN Tunnel channel ID for the serial9 port
+    // @Range: -1 127
+    // @Increment: 1
+    // @User: Advanced
+    GARRAY(serial_chan_id, 9, "SERIAL9_CHAN_ID", -1),
+
+    // @Param: SERIAL9_BUF_US
+    // @DisplayName: Serial9 UAVCAN Tunnel Buffer Time
+    // @Description: This is the buffer time for which the message is buffer before forwarding to the Serial9
+    // @Range: 0 1000000
+    // @Increment: 1
+    // @User: Advanced
+    GARRAY(serial_buffer_us, 9, "SERIAL9_BUF_US", 0),
+#endif
+
+    // @Param: SERIAL_AUTO_PASS
+    // @DisplayName: Serial Auto Passthough selection
+    // @Description: Automatically pass through to serial port if protocol matches
+    // @Values: 0:Disabled,1:Enabled
+    // @User: Advanced
+    GSCALAR(serial_auto_passthrough_select, "SERIAL_AUTO_PASS", 0),
+#endif
     AP_VAREND
 };
 

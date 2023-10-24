@@ -469,6 +469,38 @@ void AP_Periph_FW::update()
 #ifdef HAL_PERIPH_ENABLE_ADSB
     adsb_update();
 #endif
+#if AP_SERIAL_EXTENSION_ENABLED
+    AP::serialmanager().update_passthru();
+#endif
+#if HAL_ENABLE_SERIAL_TUNNEL
+    // loop through serial ids
+    for (uint8_t i=0; i<SERIALMANAGER_NUM_UART_PORTS; i++) {
+        if (hal.serial(i) == nullptr) {
+            continue;
+        }
+        if (g.serial_chan_id[i] != -1) {
+            if (dronecan_serial[i] == nullptr) {
+                dronecan_serial[i] = new AP_DroneCAN_Serial(i);
+                if (dronecan_serial[i] == nullptr) {
+                    // we have run out of memory
+                    break;
+                }
+                dronecan_serial[i]->begin(0); // baudrate doesn't matter
+                if (!hal.serial(i)->is_initialized()) {
+                    // just start with default baud of 115200
+                    hal.serial(i)->begin(115200);
+                }
+                // set passthrough port
+                hal.serial(i)->set_passthrough(dronecan_serial[i]);
+                can_printf("UART[%d] is passed through to Tunnel[%d]: Manual", i, g.serial_chan_id[i]);
+            }
+            dronecan_serial[i]->set_channel_id(g.serial_chan_id[i]);
+        } else {
+            // stop passthrough port
+            hal.serial(i)->set_passthrough(nullptr);
+        }
+    }
+#endif
 }
 
 #ifdef HAL_PERIPH_LISTEN_FOR_SERIAL_UART_REBOOT_CMD_PORT

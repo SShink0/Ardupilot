@@ -28,6 +28,7 @@
 #include <AP_HAL/utility/RingBuffer.h>
 #include <AP_Common/AP_FWVersion.h>
 #include <dronecan_msgs.h>
+#include "AP_DroneCAN_Serial.h"
 
 #if CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
 #include <hal.h>
@@ -424,11 +425,6 @@ static void handle_param_executeopcode(CanardInstance* ins, CanardRxTransfer* tr
 );
 }
 
-static void canard_broadcast(uint64_t data_type_signature,
-                                uint16_t data_type_id,
-                                uint8_t priority,
-                                const void* payload,
-                                uint16_t payload_len);
 static void processTx(void);
 static void processRx(void);
 
@@ -915,6 +911,81 @@ static void can_safety_button_update(void)
 }
 #endif // HAL_GPIO_PIN_SAFE_BUTTON
 
+// handle Serial Tunnel request
+#if HAL_ENABLE_SERIAL_TUNNEL
+static void handle_tunnel_broadcast(CanardInstance* ins, CanardRxTransfer* transfer)
+{
+    uavcan_tunnel_Broadcast msg;
+    if (uavcan_tunnel_Broadcast_decode(transfer, &msg)) {
+        return;
+    }
+
+    // this might be a passthrough request for GPS
+    AP_SerialManager::SerialProtocol protocol = AP_DroneCAN_Serial::tunnel_protocol_to_ap_protocol(msg.protocol.protocol);
+    if (protocol != AP_SerialManager::SerialProtocol_None && periph.g.serial_auto_passthrough_select) {
+        // find port with matching protocol
+        int8_t instance = AP::serialmanager().find_portnum(protocol, 0);
+        if (instance >= 0 && instance < SERIALMANAGER_NUM_UART_PORTS) {
+            // set passthrough to this port
+            periph.g.serial_chan_id[instance].set(msg.channel_id);
+            if (periph.dronecan_serial[instance] == nullptr) {
+                periph.dronecan_serial[instance] = new AP_DroneCAN_Serial(msg.channel_id);
+                if (periph.dronecan_serial[instance] == nullptr) {
+                    // we have run out of memory
+                    return;
+                }
+                periph.dronecan_serial[instance]->begin(0); // baudrate doesn't matter
+                // set passthrough port
+                hal.serial(instance)->set_passthrough(periph.dronecan_serial[instance]);
+                can_printf("UART[%d] is passed through to Tunnel[%d]: Auto", instance, periph.g.serial_chan_id[instance].get());
+            }
+        }
+    }
+
+    for (uint8_t i=0; i<SERIALMANAGER_NUM_UART_PORTS; i++) {
+        if (periph.dronecan_serial[i] != nullptr) {
+            if (periph.dronecan_serial[i]->handle_tunnel_broadcast(*ins, *transfer, msg)) {
+                return;
+            }
+        }
+    }
+
+    // look for a matching node
+#if AP_SERIAL_EXTENSION_ENABLED
+    uint8_t num_uavcan_phys = AP::serialmanager().get_num_phy_serials(AP_SerialManager::SerialPhysical_DroneCAN);
+    for (uint8_t i=0; i<num_uavcan_phys; i++) {
+        AP_DroneCAN_Serial *dronecan_serial = static_cast<AP_DroneCAN_Serial*>(AP::serialmanager().find_serial_by_phy(AP_SerialManager::SerialPhysical_DroneCAN, i));
+        if (dronecan_serial == nullptr) {
+            continue;
+        }
+        if (dronecan_serial->handle_tunnel_broadcast(*ins, *transfer, msg)) {
+            return;
+        }
+    }
+#endif
+}
+
+static void handle_serialconfig(CanardInstance* ins, CanardRxTransfer* transfer)
+{
+    uavcan_tunnel_SerialConfig msg;
+    if (uavcan_tunnel_SerialConfig_decode(transfer, &msg)) {
+        return;
+    }
+    for (uint8_t i=0; i<SERIALMANAGER_NUM_UART_PORTS; i++) {
+        if (periph.g.serial_chan_id[i] == msg.channel_id && periph.dronecan_serial[i] != nullptr) {
+            periph.dronecan_serial[i]->handle_tunnel_config(*ins, *transfer, msg);
+        }
+    }
+#if AP_SERIAL_EXTENSION_ENABLED
+    AP_DroneCAN_Serial *dronecan_serial = static_cast<AP_DroneCAN_Serial*>(AP::serialmanager().find_serial_by_phy(AP_SerialManager::SerialPhysical_DroneCAN, msg.channel_id));
+    if (dronecan_serial == nullptr) {
+        return;
+    }
+    dronecan_serial->handle_tunnel_config(*ins, *transfer, msg);
+#endif
+}
+#endif //HAL_ENABLE_SERIAL_TUNNEL
+
 /**
  * This callback is invoked by the library when a new message or request or response is received.
  */
@@ -1014,6 +1085,14 @@ static void onTransferReceived(CanardInstance* ins,
         handle_notify_state(ins, transfer);
         break;
 #endif
+#if HAL_ENABLE_SERIAL_TUNNEL
+    case UAVCAN_TUNNEL_BROADCAST_ID:
+        handle_tunnel_broadcast(ins, transfer);
+        break;
+    case UAVCAN_TUNNEL_SERIALCONFIG_ID:
+        handle_serialconfig(ins, transfer);
+        break;
+#endif
     }
 }
 
@@ -1106,6 +1185,14 @@ static bool shouldAcceptTransfer(const CanardInstance* ins,
         *out_data_type_signature = ARDUPILOT_INDICATION_NOTIFYSTATE_SIGNATURE;
         return true;
 #endif
+#if HAL_ENABLE_SERIAL_TUNNEL
+    case UAVCAN_TUNNEL_BROADCAST_ID:
+        *out_data_type_signature = UAVCAN_TUNNEL_BROADCAST_SIGNATURE;
+        return true;
+    case UAVCAN_TUNNEL_SERIALCONFIG_ID:
+        *out_data_type_signature = UAVCAN_TUNNEL_SERIALCONFIG_SIGNATURE;
+        return true;
+#endif
     default:
         break;
     }
@@ -1156,43 +1243,46 @@ static uint8_t* get_tid_ptr(uint32_t transfer_desc)
     return &tid_map_ptr->next->tid;
 }
 
-static void canard_broadcast(uint64_t data_type_signature,
-                                uint16_t data_type_id,
-                                uint8_t priority,
-                                const void* payload,
-                                uint16_t payload_len)
+int16_t canard_broadcast(uint64_t data_type_signature,
+                        uint16_t data_type_id,
+                        uint8_t priority,
+                        const void* payload,
+                        uint16_t payload_len)
 {
     if (canardGetLocalNodeID(&dronecan.canard) == CANARD_BROADCAST_NODE_ID) {
-        return;
+        return -1;
     }
-
-    uint8_t *tid_ptr = get_tid_ptr(MAKE_TRANSFER_DESCRIPTOR(data_type_signature, data_type_id, 0, CANARD_BROADCAST_NODE_ID));
-    if (tid_ptr == nullptr) {
-        return;
-    }
-#if DEBUG_PKTS
-    const int16_t res = 
+    int16_t res;
+    {
+#if HAL_CANARD_BROADCAST_THREAD_SAFE
+        WITH_SEMAPHORE(periph.broadcast_sem);
 #endif
-    canardBroadcast(&dronecan.canard,
-                    data_type_signature,
-                    data_type_id,
-                    tid_ptr,
-                    priority,
-                    payload,
-                    payload_len
+
+        uint8_t *tid_ptr = get_tid_ptr(MAKE_TRANSFER_DESCRIPTOR(data_type_signature, data_type_id, 0, CANARD_BROADCAST_NODE_ID));
+        if (tid_ptr == nullptr) {
+            return -1;
+        }
+        res =  canardBroadcast(&dronecan.canard,
+                                data_type_signature,
+                                data_type_id,
+                                tid_ptr,
+                                priority,
+                                payload,
+                                payload_len
 #if CANARD_MULTI_IFACE
-                    , IFACE_ALL // send over all ifaces
+                                , IFACE_ALL // send over all ifaces
 #endif
 #if HAL_CANFD_SUPPORTED
-                    , periph.canfdout()
+                                , periph.canfdout()
 #endif
-                    );
-
+                                );
+    }
 #if DEBUG_PKTS
     if (res < 0) {
         can_printf("Tx error %d\n", res);
     }
 #endif
+    return res;
 }
 
 static void processTx(void)
@@ -1545,7 +1635,7 @@ void AP_Periph_FW::can_start()
 
         // ensure there's a serial port mapped to SLCAN
         if (!periph.serial_manager.have_serial(AP_SerialManager::SerialProtocol_SLCAN, 0)) {
-            periph.serial_manager.set_protocol_and_baud(SERIALMANAGER_NUM_PORTS-1, AP_SerialManager::SerialProtocol_SLCAN, 1500000);
+            periph.serial_manager.set_protocol_and_baud(SERIALMANAGER_NUM_UART_PORTS-1, AP_SerialManager::SerialProtocol_SLCAN, 1500000);
         }
     }
 #endif
@@ -1767,6 +1857,15 @@ void AP_Periph_FW::can_update()
     const uint32_t now_us = AP_HAL::micros();
     while ((AP_HAL::micros() - now_us) < 1000) {
         hal.scheduler->delay_microseconds(HAL_PERIPH_LOOP_DELAY_US);
+#if HAL_ENABLE_SERIAL_TUNNEL
+        for (uint8_t i=0; i<ARRAY_SIZE(dronecan_serial); i++) {
+            // run send_data() on all serial tunnels
+            if (dronecan_serial[i] != nullptr) {
+                dronecan_serial[i]->set_buffer_time_us(periph.g.serial_buffer_us[i]);
+                dronecan_serial[i]->send_data();
+            }
+        }
+#endif
         processTx();
         processRx();
     }
