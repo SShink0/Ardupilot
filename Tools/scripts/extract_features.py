@@ -224,6 +224,8 @@ class ExtractFeatures(object):
             ('AP_DRONECAN_HOBBYWING_ESC_SUPPORT', 'AP_DroneCAN::hobbywing_ESC_update'),
             ('COMPASS_CAL_ENABLED', 'CompassCalibrator::stop'),
             ('AP_TUNING_ENABLED', 'AP_Tuning::check_input'),
+            ('AP_MOUNT_ROI_WPNEXT_OFFSET_ENABLED', 'AP_Mount_Backend::get_angle_target_to_wpnext_offset'),
+            ('AP_MISSION_MAV_CMD_DO_SET_ROI_WPNEXT_OFFSET_ENABLED', 'AP_Mission::start_command_do_set_roi_wpnext_offset'),
         ]
 
     def progress(self, msg):

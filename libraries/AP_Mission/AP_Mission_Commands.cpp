@@ -330,3 +330,40 @@ bool AP_Mission::start_command_do_gimbal_manager_pitchyaw(const AP_Mission::Miss
     // if we got this far then message is not handled
     return false;
 }
+
+#if AP_MISSION_MAV_CMD_DO_SET_ROI_WPNEXT_OFFSET_ENABLED
+bool AP_Mission::start_command_do_set_roi_wpnext_offset(const AP_Mission::Mission_Command& cmd)
+{
+#if HAL_MOUNT_ENABLED
+    AP_Mount *mount = AP::mount();
+    if (mount == nullptr) {
+        return false;
+    }
+
+    mount->set_roi_target_wpnext_offset(Vector3f{
+            float(cmd.content.wpnext_offset.roll_offset_deg),
+            float(cmd.content.wpnext_offset.pitch_offset_deg),
+            float(cmd.content.wpnext_offset.yaw_offset_deg)
+        });
+
+    return true;
+#else
+    return false;
+#endif // HAL_MOUNT_ENABLED
+}
+
+bool AP_Mission::start_command_do_set_roi_none()
+{
+#if HAL_MOUNT_ENABLED
+    AP_Mount *mount = AP::mount();
+    if (mount == nullptr) {
+        return false;
+    }
+
+    mount->set_mode_to_default();
+    return true;
+#else
+    return false;
+#endif
+}
+#endif
