@@ -249,6 +249,7 @@ public:
         CAMERA_IMAGE_TRACKING = 174, // camera image tracking
         CAMERA_LENS =        175, // camera lens selection
         VFWD_THR_OVERRIDE =  176, // force enabled VTOL forward throttle method
+        TRANSMITTER_TUNING = 177, // use a transmitter knob or slider for in-flight tuning
 
 
         // inputs from 200 will eventually used to replace RCMAP

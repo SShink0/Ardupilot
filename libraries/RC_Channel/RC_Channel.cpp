@@ -234,6 +234,7 @@ const AP_Param::GroupInfo RC_Channel::var_info[] = {
     // @Values{Plane}: 173:Plane AUTO Mode Landing Abort
     // @Values{Copter, Rover, Plane, Blimp}: 174:Camera Image Tracking
     // @Values{Copter, Rover, Plane, Blimp}: 175:Camera Lens
+    // @Values{Copter}: 177:Transmitter Tuning
     // @Values{Rover}: 201:Roll
     // @Values{Rover}: 202:Pitch
     // @Values{Rover}: 207:MainSail

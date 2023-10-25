@@ -632,7 +632,7 @@ void Copter::three_hz_loop()
 #endif // AP_FENCE_ENABLED
 
 
-    // update ch6 in flight tuning
+    // update transmitter based in flight tuning
     tuning();
 
     // check if avoidance should be enabled based on alt
