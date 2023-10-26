@@ -25,6 +25,9 @@ public:
     // can't truncate-to a longer list)
     void truncate(const mavlink_mission_count_t &packet) override;
 
+    // periodic updates, e.g. update checksum
+    void update() override;
+
 protected:
 
     // clear_all_items() is called to clear all items on the vehicle
@@ -37,6 +40,13 @@ protected:
     ap_message next_item_ap_message_id() const override {
         return MSG_NEXT_MISSION_REQUEST_WAYPOINTS;
     }
+
+    bool opaque_id(uint32_t &checksum) const override;
+    bool supports_opaque_id() const override { return true; }
+
+    // force the cksum to be recalculated and become unavailable for
+    // fetching until it has been.
+    void invalidate_checksum();
 
 private:
     AP_Mission &mission;
@@ -63,6 +73,25 @@ private:
 
     // replace_item() replaces an item in the stored list
     MAV_MISSION_RESULT replace_item(const mavlink_mission_item_int_t &) override WARN_IF_UNUSED;
+
+    enum class ChecksumState : uint8_t {
+        READY,
+        CALCULATING,
+        ERROR,
+    };
+    struct {
+        ChecksumState state;
+        uint16_t count;
+        uint16_t current_waypoint;
+        uint32_t last_change_time_ms;
+        uint32_t last_calculate_time_ms;
+        uint32_t mission_change_time_ms;
+        uint32_t checksum;
+    } checksum_state;
+
+private:
+
+    void update_checksum();
 
 };
 

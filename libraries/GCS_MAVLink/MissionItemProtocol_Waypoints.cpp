@@ -59,6 +59,7 @@ MAV_MISSION_RESULT MissionItemProtocol_Waypoints::complete(const GCS_MAVLINK &_l
 {
     _link.send_text(MAV_SEVERITY_INFO, "Flight plan received");
     AP::logger().Write_EntireMission();
+    invalidate_checksum();
     return MAV_MISSION_ACCEPTED;
 }
 
@@ -72,11 +73,14 @@ MAV_MISSION_RESULT MissionItemProtocol_Waypoints::get_item(const GCS_MAVLINK &_l
         // try to educate the GCS on the actual size of the mission:
         const mavlink_channel_t chan = _link.get_chan();
         if (HAVE_PAYLOAD_SPACE(chan, MISSION_COUNT)) {
+            uint32_t _opaque_id = 0;
+            IGNORE_RETURN(opaque_id(_opaque_id));
             mavlink_msg_mission_count_send(chan,
                                            msg.sysid,
                                            msg.compid,
                                            mission.num_commands(),
-                                           MAV_MISSION_TYPE_MISSION);
+                                           MAV_MISSION_TYPE_MISSION,
+                                           _opaque_id);
         }
         return MAV_MISSION_ERROR;
     }
@@ -145,4 +149,128 @@ void MissionItemProtocol_Waypoints::truncate(const mavlink_mission_count_t &pack
     mission.truncate(packet.count);
 }
 
+// returns a unique ID for this mission
+bool MissionItemProtocol_Waypoints::opaque_id(uint32_t &checksum) const
+{
+    WITH_SEMAPHORE(mission.get_semaphore());
+    switch (checksum_state.state) {
+    case ChecksumState::READY:
+        if (mission.last_change_time_ms() != checksum_state.mission_change_time_ms) {
+            return false;
+        }
+        checksum = checksum_state.checksum;
+        // can't use zero as the field is an extension field in mavlink2:
+        if (checksum == 0) {
+            checksum = UINT32_MAX;
+        }
+        return true;
+    case ChecksumState::CALCULATING:
+    case ChecksumState::ERROR:
+        return false;
+    }
+    return false;
+}
+
+void MissionItemProtocol_Waypoints::invalidate_checksum()
+{
+    WITH_SEMAPHORE(mission.get_semaphore());
+
+    checksum_state.state = ChecksumState::CALCULATING;
+    checksum_state.checksum = 0;
+    checksum_state.current_waypoint = 1;
+    checksum_state.count = mission.num_commands();
+    checksum_state.mission_change_time_ms = mission.last_change_time_ms();
+}
+
+void MissionItemProtocol_Waypoints::update_checksum()
+{
+    // update the checksum if required:
+
+    WITH_SEMAPHORE(mission.get_semaphore());
+
+    const uint32_t mission_last_change_time_ms = mission.last_change_time_ms();
+
+    if (mission_last_change_time_ms == checksum_state.last_calculate_time_ms) {
+        return;
+    }
+
+    // decide whether we need to start calculating the checksum from
+    // the start; we may be partially through the calculation and need
+    // to start again
+    bool do_initialisation = false;
+    switch (checksum_state.state) {
+    case ChecksumState::READY:
+        do_initialisation = true;
+        break;
+    case ChecksumState::CALCULATING:
+        if (checksum_state.mission_change_time_ms != mission_last_change_time_ms) {
+            // mission changed part-way through our calculations
+            do_initialisation = true;
+        }
+        break;
+    case ChecksumState::ERROR:
+        do_initialisation = true;
+        break;
+    }
+
+    if (do_initialisation) {
+        invalidate_checksum();
+    }
+
+    const uint32_t now_ms = AP_HAL::millis();
+    if (now_ms - mission.last_change_time_ms() < 500) {
+        // don't start to calculate unless the mission's been
+        // unchanged for a while.
+        return;
+    }
+
+    // AP: Took 2.178000ms to checksum 373 points (5.839142ms/1000 points
+    for (uint16_t count = 0;
+         count<16 && checksum_state.current_waypoint<checksum_state.count;
+         count++, checksum_state.current_waypoint++) {
+        AP_Mission::Mission_Command cmd;
+        if (!mission.read_cmd_from_storage(checksum_state.current_waypoint, cmd)) {
+            checksum_state.state = ChecksumState::ERROR;
+            return;
+        }
+        mavlink_mission_item_int_t ret_packet;
+        if (!AP_Mission::mission_cmd_to_mavlink_int(cmd, ret_packet)) {
+            checksum_state.state = ChecksumState::ERROR;
+            return;
+        }
+#define ADD_TO_CHECKSUM(field) checksum_state.checksum = crc_crc32(checksum_state.checksum, (uint8_t*)&ret_packet.field, sizeof(ret_packet.field));
+        ADD_TO_CHECKSUM(frame);
+        ADD_TO_CHECKSUM(command);
+        ADD_TO_CHECKSUM(autocontinue);
+        ADD_TO_CHECKSUM(param1);
+        ADD_TO_CHECKSUM(param2);
+        ADD_TO_CHECKSUM(param3);
+        ADD_TO_CHECKSUM(param4);
+        ADD_TO_CHECKSUM(x);
+        ADD_TO_CHECKSUM(y);
+        ADD_TO_CHECKSUM(z);
+#undef ADD_TO_CHECKSUM
+    }
+
+    if (checksum_state.current_waypoint<checksum_state.count) {
+        return;
+    }
+
+    checksum_state.state = ChecksumState::READY;
+    checksum_state.last_calculate_time_ms = mission_last_change_time_ms;
+
+    // poke the parent class to send the deferred ack, if any:
+    deferred_mission_ack.opaque_id = checksum_state.checksum;
+    if (deferred_mission_ack.opaque_id == 0) {
+        deferred_mission_ack.opaque_id = -1;
+    }
+}
+
+void MissionItemProtocol_Waypoints::update()
+{
+    update_checksum();
+    MissionItemProtocol::update();
+}
+
 #endif  // HAL_GCS_ENABLED && AP_MISSION_ENABLED
+

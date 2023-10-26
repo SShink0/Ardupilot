@@ -49,11 +49,11 @@ public:
     void handle_mission_item(const mavlink_message_t &msg,
                              const mavlink_mission_item_int_t &cmd);
 
-    void handle_mission_clear_all(const GCS_MAVLINK &link,
+    void handle_mission_clear_all(GCS_MAVLINK &link,
                                   const mavlink_message_t &msg);
 
     void queued_request_send();
-    void update();
+    virtual void update();
 
     bool active_link_is(const GCS_MAVLINK *_link) const { return _link == link; };
 
@@ -64,6 +64,7 @@ public:
     // a method for GCS_MAVLINK to send warnings about received
     // MISSION_ITEM messages (we should be getting MISSION_ITEM_INT)
     void send_mission_item_warning();
+    virtual bool opaque_id(uint32_t &checksum) const { return false; }
 
 protected:
 
@@ -76,6 +77,13 @@ protected:
     virtual bool clear_all_items() = 0;
 
     uint16_t        request_last; // last request index
+
+    struct {
+        const GCS_MAVLINK *link;
+        uint8_t sysid;
+        uint8_t compid;
+        uint32_t opaque_id;  // subclass fills this in when it is ready
+    } deferred_mission_ack;
 
 private:
 
@@ -117,6 +125,10 @@ private:
 
     void send_mission_ack(const mavlink_message_t &msg, MAV_MISSION_RESULT result) const;
     void send_mission_ack(const GCS_MAVLINK &link, const mavlink_message_t &msg, MAV_MISSION_RESULT result) const;
+    void send_mission_ack(const GCS_MAVLINK &_link,
+                          uint8_t sysid,
+                          uint8_t compid,
+                          MAV_MISSION_RESULT result) const;
 
     virtual uint16_t item_count() const = 0;
     virtual uint16_t max_items() const = 0;
@@ -140,4 +152,6 @@ private:
     virtual void timeout() {};
 
     bool mavlink2_requirement_met(const GCS_MAVLINK &_link, const mavlink_message_t &msg) const;
+
+    virtual bool supports_opaque_id() const { return false; }
 };
