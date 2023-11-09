@@ -111,6 +111,7 @@ private:
         ABSOLUTE_ZOOM = 0x0F,
         SET_CAMERA_IMAGE_TYPE = 0x11,
         READ_RANGEFINDER = 0x15,
+        ACQUIRE_ZOOM_MAX = 0x16,
     };
 
     // Function Feedback Info packet info_type values
@@ -242,6 +243,7 @@ private:
     void request_function_feedback_info() { send_packet(SiyiCommandId::FUNCTION_FEEDBACK_INFO, nullptr, 0); }
     void request_gimbal_attitude() { send_packet(SiyiCommandId::ACQUIRE_GIMBAL_ATTITUDE, nullptr, 0); }
     void request_rangefinder_distance() { send_packet(SiyiCommandId::READ_RANGEFINDER, nullptr, 0); }
+    void request_zoom_max() { send_packet(SiyiCommandId::ACQUIRE_ZOOM_MAX, nullptr, 0); }
 
     // rotate gimbal.  pitch_rate and yaw_rate are scalars in the range -100 ~ +100
     // yaw_is_ef should be true if gimbal should maintain an earth-frame target (aka lock)
@@ -311,10 +313,20 @@ private:
     uint32_t _last_req_current_angle_rad_ms;        // system time that this driver last requested current angle
 
     // absolute zoom control.  only used for A8 that does not support abs zoom control
-    ZoomType _zoom_type;                            // current zoom type
-    float _zoom_rate_target;                        // current zoom rate target
-    float _zoom_mult;                               // most recent actual zoom multiple received from camera
-    uint32_t _last_zoom_control_ms;                 // system time that zoom control was last run
+    struct {
+        ZoomType type;
+        struct {
+            float target;                         // current zoom rate target
+            float last_control_ms;                // system time that zoom rate control was last run
+        } rate;
+        struct {
+            float target;                         // current zoom abs target
+            float last_control_ms;                // system time that zoom abs control was last run
+        } abs;
+
+        float multiple;                           // most recent actual zoom multiple received from camera
+        float multiple_max;                       // max zoom level received from camera
+    } _zoom;
 
     // Configuration info received from gimbal
     GimbalConfigInfo _config_info;

@@ -40,6 +40,18 @@ void AP_Mount_Siyi::init()
     if (_uart != nullptr) {
         _initialised = true;
     }
+
+    // Invalidate the reported maximum zoom
+    _zoom.multiple_max = -1.0;
+
+    // Request the information required to correctly drive the gimbal
+    request_hardware_id();
+    request_firmware_version();
+
+    // Set the zoom rate to zero (this sends the MANUAL_ZOOM_AND_AUTO_FOCUS
+    // command, which is the only way to get the current zoom level).
+    send_zoom_rate(0.0);
+
     AP_Mount_Backend::init();
 }
 
@@ -67,6 +79,9 @@ void AP_Mount_Siyi::update()
             return;
         } else {
             request_configuration();
+            if (_zoom.multiple_max < 0.0) {
+                request_zoom_max();
+            }
         }
     }
 
@@ -399,8 +414,8 @@ void AP_Mount_Siyi::process_packet()
 #endif
             break;
         }
-        _zoom_mult = UINT16_VALUE(_msg_buff[_msg_buff_data_start+1], _msg_buff[_msg_buff_data_start]) * 0.1;
-        debug("ZoomMult:%4.1f", (double)_zoom_mult);
+        _zoom.multiple = UINT16_VALUE(_msg_buff[_msg_buff_data_start+1], _msg_buff[_msg_buff_data_start]) * 0.1;
+        debug("ZoomMult:%4.1f", _zoom.multiple);
         break;
     }
 
@@ -525,6 +540,23 @@ void AP_Mount_Siyi::process_packet()
         //const float yaw_rate_degs = -(int16_t)UINT16_VALUE(_msg_buff[_msg_buff_data_start+7], _msg_buff[_msg_buff_data_start+6]) * 0.1;   // yaw rate
         //const float pitch_rate_deg = (int16_t)UINT16_VALUE(_msg_buff[_msg_buff_data_start+9], _msg_buff[_msg_buff_data_start+8]) * 0.1;   // pitch rate
         //const float roll_rate_deg = (int16_t)UINT16_VALUE(_msg_buff[_msg_buff_data_start+11], _msg_buff[_msg_buff_data_start+10]) * 0.1;  // roll rate
+        break;
+    }
+
+    case SiyiCommandId::ABSOLUTE_ZOOM:
+#if AP_MOUNT_SIYI_DEBUG
+        // always returns uint8_t(1)
+        if (_parsed_msg.data_bytes_received != 1) {
+            unexpected_len = true;
+        }
+#endif
+        break;
+
+    case SiyiCommandId::ACQUIRE_ZOOM_MAX: {
+        float max = (float)_msg_buff[_msg_buff_data_start];
+        max += (float)_msg_buff[_msg_buff_data_start + 1] / 10;
+        _zoom.multiple_max = max;
+        debug("Max Zoom response: %.02f", max);
         break;
     }
 
@@ -768,44 +800,82 @@ bool AP_Mount_Siyi::send_zoom_rate(float zoom_value)
     if (zoom_value > 0) {
         // zoom in
         zoom_step = 1;
-    }
-    if (zoom_value < 0) {
+    } else if (zoom_value < 0) {
         // zoom out. Siyi API specifies -1 should be sent as 255
         zoom_step = UINT8_MAX;
     }
-    return send_1byte_packet(SiyiCommandId::MANUAL_ZOOM_AND_AUTO_FOCUS, zoom_step);
+    bool ok = send_1byte_packet(SiyiCommandId::MANUAL_ZOOM_AND_AUTO_FOCUS, zoom_step);
+    if (ok) {
+        _zoom.type = ZoomType::RATE;
+        _zoom.rate.target = zoom_value;
+    }
+
+    return ok;
 }
 
 // send zoom multiple command to camera. e.g. 1x, 10x, 30x
 // only works on ZR10 and ZR30
 bool AP_Mount_Siyi::send_zoom_mult(float zoom_mult)
 {
+    zoom_mult = constrain_float(zoom_mult, 1.0, get_zoom_mult_max());
+
     // separate zoom_mult into integral and fractional parts
     float intpart;
-    uint8_t fracpart = (uint8_t)constrain_int16(modf(zoom_mult, &intpart) * 10, 0, UINT8_MAX);
+    float fracpart = modf(zoom_mult, &intpart);
 
     // create and send 2 byte array
-    const uint8_t zoom_mult_data[] {(uint8_t)(intpart), fracpart};
-    return send_packet(SiyiCommandId::ABSOLUTE_ZOOM, zoom_mult_data, ARRAY_SIZE(zoom_mult_data));
+    const uint8_t zoom_mult_data[2] {
+        (uint8_t)constrain_float(intpart, 0, UINT8_MAX),
+        (uint8_t)constrain_float(fracpart * 10, 0, UINT8_MAX),
+    };
+
+    if (!is_zero(_zoom.rate.target)) {
+        // If the zoom controller is in rate mode, set the rate to zero.
+        // This prevents the zoom jumping due to the difference between actual
+        // and reported zoom level.
+        return send_zoom_rate(0.0f);
+    }
+
+    // Otherwise, set the absolute position
+    bool ok = send_packet(SiyiCommandId::ABSOLUTE_ZOOM, zoom_mult_data, ARRAY_SIZE(zoom_mult_data));
+
+    if (ok) {
+        _zoom.type = ZoomType::PCT;
+        _zoom.rate.target = 0.0;
+        _zoom.abs.target = zoom_mult;
+        // assume that the zoom multiple is what we asked for, as we don't have
+        // a way to query the zoom directly.
+        _zoom.multiple = zoom_mult;
+    }
+
+    return ok;
 }
 
 // get zoom multiple max
 float AP_Mount_Siyi::get_zoom_mult_max() const
 {
+    // If we have it, use the zoom level reported by the gimbal (as it can
+    // changed based on image resolution).
+    if (_zoom.multiple_max >= 0.0) {
+        return _zoom.multiple_max;
+    }
+
+    // Otherwise, return the expected max zoom level based on model
     switch (_hardware_model) {
     case HardwareModel::UNKNOWN:
-        return 0;
+        return 1.0;
     case HardwareModel::A2:
     case HardwareModel::A8:
-        // a8 has 6x digital zoom
-        return 6;
+        // A8 has 6x digital zoom
+        return 6.0;
     case HardwareModel::ZR10:
     case HardwareModel::ZR30:
     case HardwareModel::ZT30:
         // 30x hybrid zoom (optical + digital)
-        return 30;
+        return 30.0;
     }
-    return 0;
+
+    return 1.0;
 }
 
 // set zoom specified as a rate or percentage
@@ -814,8 +884,6 @@ bool AP_Mount_Siyi::set_zoom(ZoomType zoom_type, float zoom_value)
     switch (zoom_type) {
     case ZoomType::RATE:
         if (send_zoom_rate(zoom_value)) {
-            _zoom_type = zoom_type;
-            _zoom_rate_target = zoom_value;
             return true;
         }
         return false;
@@ -826,12 +894,33 @@ bool AP_Mount_Siyi::set_zoom(ZoomType zoom_type, float zoom_value)
             // convert zoom percentage (0~100) to target zoom multiple (e.g. 0~6x or 0~30x)
             const float zoom_mult = linear_interpolate(1, zoom_mult_max, zoom_value, 0, 100);
             if (send_zoom_mult(zoom_mult)) {
-                _zoom_type = zoom_type;
                 return true;
             }
             return false;
         }
         return false;
+    }
+    case ZoomType::STEP: {
+        const float zoom_mult_max = get_zoom_mult_max();
+        if (zoom_mult_max <= 1.0) {
+            return false;
+        }
+
+        // Calculate a step value to give n steps between min and max zoom
+        const float num_steps = 10.0;
+        const float step = (zoom_mult_max - 1.0) / num_steps;
+        float delta = 0.0;
+        if (zoom_value > 0.0) {
+            delta = step;
+        } else if (zoom_value < 0.0) {
+            delta = -step;
+        } else {
+            // A step of zero is a no-op, so return true.
+            return true;
+        }
+
+        const float new_zoom = constrain_float(this->_zoom.multiple + delta, 1.0, zoom_mult_max);
+        return send_zoom_mult(new_zoom);
     }
     }
 
@@ -842,18 +931,41 @@ bool AP_Mount_Siyi::set_zoom(ZoomType zoom_type, float zoom_value)
 // update zoom controller
 void AP_Mount_Siyi::update_zoom_control()
 {
-    if (_zoom_type == ZoomType::RATE) {
+    const uint32_t now_ms = AP_HAL::millis();
+    // If we've set a zoom rate, periodically send it. This is because the
+    // zoom controller on the Siyi can get stuck when it swaps between
+    // optical and digital zoom.
+    if (_zoom.type == ZoomType::RATE) {
         // limit updates to 1hz
-        const uint32_t now_ms = AP_HAL::millis();
-        if (now_ms - _last_zoom_control_ms < 1000) {
+        if (now_ms - _zoom.rate.last_control_ms < 1000) {
             return;
         }
-        _last_zoom_control_ms = now_ms;
+        _zoom.rate.last_control_ms = now_ms;
 
-        // only send zoom rate target if it's non-zero because if zero it has already been sent
-        // and sending zero rate also triggers autofocus
-        if (!is_zero(_zoom_rate_target)) {
-            send_zoom_rate(_zoom_rate_target);
+        // only send zoom rate target if it's non-zero and hasn't reached the limit.
+        // if target is zero, it has already been sent, and sending zero rate also triggers autofocus
+        const bool is_zooming_in  = is_positive(_zoom.rate.target) && _zoom.multiple < get_zoom_mult_max();
+        const bool is_zooming_out = is_negative(_zoom.rate.target) && _zoom.multiple > 1.0;
+        if (is_zooming_in || is_zooming_out) {
+            send_zoom_rate(_zoom.rate.target);
+        } else {
+            // if we've reached a limit, clear the rate target
+            if (!is_zero(_zoom.rate.target)) {
+                _zoom.rate.target = 0.0f;
+            }
+        }
+    } else {
+        // limit updates to 10hz
+        if (now_ms - _zoom.abs.last_control_ms < 100) {
+            return;
+        }
+        _zoom.abs.last_control_ms = now_ms;
+
+        // Periodically send the absolute zoom position, until the reported zoom level
+        // matches what we've requested.
+        const bool at_target = (abs(_zoom.multiple - _zoom.abs.target) < 0.05f);
+        if (!at_target) {
+            send_zoom_mult(_zoom.abs.target);
         }
     }
 }
@@ -1000,7 +1112,7 @@ void AP_Mount_Siyi::send_camera_settings(mavlink_channel_t chan) const
     const float zoom_mult_max = get_zoom_mult_max();
     float zoom_pct = 0.0;
     if (is_positive(zoom_mult_max)) {
-        zoom_pct = linear_interpolate(0, 100, _zoom_mult, 1.0, zoom_mult_max);
+        zoom_pct = linear_interpolate(0, 100, _zoom.multiple, 1.0, zoom_mult_max);
     }
 
     // send CAMERA_SETTINGS message
