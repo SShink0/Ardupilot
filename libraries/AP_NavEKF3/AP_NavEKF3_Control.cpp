@@ -679,8 +679,6 @@ bool NavEKF3_core::setOrigin(const Location &loc)
     validOrigin = true;
 
     // this section is similar to what is in AP_NavEKF3_Measurements.cpp's NavEKF3_core::readGpsData()
-    Vector3f magNED;
-    getMagNED(magNED);
     if (!stateStruct.quat.is_zero()) {
         alignMagStateDeclination();
         const auto &compass = dal.compass();
