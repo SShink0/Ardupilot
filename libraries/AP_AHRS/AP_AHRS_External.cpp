@@ -17,6 +17,8 @@ void AP_AHRS_External::get_results(AP_AHRS_Backend::Estimates &results)
     results.initialised = AP::externalAHRS().initialised();
     results.healthy = AP::externalAHRS().healthy();
 
+    results.primary_imu_index = AP::ins().get_primary_gyro();
+
     results.attitude_valid = AP::externalAHRS().get_quaternion(results.quat);
 
     results.quat.rotation_matrix(results.dcm_matrix);
