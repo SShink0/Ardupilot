@@ -1570,7 +1570,7 @@ bool AP_AHRS::get_relative_position_NED_origin(Vector3f &vec) const
     switch (active_EKF_type()) {
 #if AP_AHRS_DCM_ENABLED
     case EKFType::DCM:
-        return dcm.get_relative_position_NED_origin(vec);
+        return dcm_estimates.get_relative_position_NED_origin(vec);
 #endif
 #if HAL_NAVEKF2_AVAILABLE
     case EKFType::TWO: {
@@ -1604,11 +1604,11 @@ bool AP_AHRS::get_relative_position_NED_origin(Vector3f &vec) const
 
 #if AP_AHRS_SIM_ENABLED
     case EKFType::SIM:
-        return sim.get_relative_position_NED_origin(vec);
+        return sim_estimates.get_relative_position_NED_origin(vec);
 #endif
 #if HAL_EXTERNAL_AHRS_ENABLED
     case EKFType::EXTERNAL: {
-        return external.get_relative_position_NED_origin(vec);
+        return external_estimates.get_relative_position_NED_origin(vec);
     }
 #endif
     }
@@ -1638,7 +1638,7 @@ bool AP_AHRS::get_relative_position_NE_origin(Vector2f &posNE) const
     switch (active_EKF_type()) {
 #if AP_AHRS_DCM_ENABLED
     case EKFType::DCM:
-        return dcm.get_relative_position_NE_origin(posNE);
+        return dcm_estimates.get_relative_position_NE_origin(posNE);
 #endif
 #if HAL_NAVEKF2_AVAILABLE
     case EKFType::TWO: {
@@ -1656,12 +1656,12 @@ bool AP_AHRS::get_relative_position_NE_origin(Vector2f &posNE) const
 
 #if AP_AHRS_SIM_ENABLED
     case EKFType::SIM: {
-        return sim.get_relative_position_NE_origin(posNE);
+        return sim_estimates.get_relative_position_NE_origin(posNE);
     }
 #endif
 #if HAL_EXTERNAL_AHRS_ENABLED
     case EKFType::EXTERNAL:
-        return external.get_relative_position_NE_origin(posNE);
+        return external_estimates.get_relative_position_NE_origin(posNE);
 #endif
     }
     // since there is no default case above, this is unreachable
@@ -1694,7 +1694,7 @@ bool AP_AHRS::get_relative_position_D_origin(float &posD) const
     switch (active_EKF_type()) {
 #if AP_AHRS_DCM_ENABLED
     case EKFType::DCM:
-        return dcm.get_relative_position_D_origin(posD);
+        return dcm_estimates.get_relative_position_D_origin(posD);
 #endif
 #if HAL_NAVEKF2_AVAILABLE
     case EKFType::TWO: {
@@ -1712,11 +1712,11 @@ bool AP_AHRS::get_relative_position_D_origin(float &posD) const
 
 #if AP_AHRS_SIM_ENABLED
     case EKFType::SIM:
-        return sim.get_relative_position_D_origin(posD);
+        return sim_estimates.get_relative_position_D_origin(posD);
 #endif
 #if HAL_EXTERNAL_AHRS_ENABLED
     case EKFType::EXTERNAL:
-        return external.get_relative_position_D_origin(posD);
+        return external_estimates.get_relative_position_D_origin(posD);
 #endif
     }
     // since there is no default case above, this is unreachable
@@ -2747,7 +2747,7 @@ bool AP_AHRS::_get_origin(EKFType type, Location &ret) const
     switch (type) {
 #if AP_AHRS_DCM_ENABLED
     case EKFType::DCM:
-        return dcm.get_origin(ret);
+        return dcm_estimates.get_origin(ret);
 #endif
 
 #if HAL_NAVEKF2_AVAILABLE
@@ -2762,11 +2762,11 @@ bool AP_AHRS::_get_origin(EKFType type, Location &ret) const
 
 #if AP_AHRS_SIM_ENABLED
     case EKFType::SIM:
-        return sim.get_origin(ret);
+        return sim_estimates.get_origin(ret);
 #endif
 #if HAL_EXTERNAL_AHRS_ENABLED
     case EKFType::EXTERNAL:
-        return external.get_origin(ret);
+        return external_estimates.get_origin(ret);
 #endif
     }
     return false;
