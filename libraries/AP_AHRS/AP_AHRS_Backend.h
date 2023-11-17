@@ -57,6 +57,8 @@ public:
         bool initialised;
         bool healthy;
 
+        uint8_t primary_imu_index;
+
         float roll_rad;
         float pitch_rad;
         float yaw_rad;
@@ -116,11 +118,6 @@ public:
 
     // init sets up INS board orientation
     virtual void init();
-
-    // get the index of the current primary gyro sensor
-    virtual uint8_t get_primary_gyro_index(void) const {
-        return AP::ins().get_primary_gyro();
-    }
 
     // Methods
     virtual void update() = 0;
