@@ -38,7 +38,6 @@ public:
     void reset_gyro_drift() override {}
 
     // Methods
-    bool            initialised() const override;
     void            update() override;
     void            get_results(Estimates &results) override;
     void            reset() override {}
@@ -55,9 +54,6 @@ public:
     }
 
     void estimate_wind(void);
-
-    // is the AHRS subsystem healthy?
-    bool healthy() const override;
 
     // returns false if we fail arming checks, in which case the buffer will be populated with a failure message
     // requires_position should be true if horizontal position configuration should be checked (not used)
