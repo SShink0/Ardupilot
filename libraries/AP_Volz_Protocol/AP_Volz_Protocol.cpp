@@ -37,6 +37,20 @@ void AP_Volz_Protocol::init(void)
 {
     AP_SerialManager &serial_manager = AP::serialmanager();
     port = serial_manager.find_serial(AP_SerialManager::SerialProtocol_Volz,0);
+
+    if (port == nullptr) {
+        return;
+    }
+
+    // Note baudrate is hardcoded to 115200
+
+    // update baud param in case user looks at it
+    serial_manager.set_default_baud(AP_SerialManager::SerialProtocol_Volz,0, 115);
+
+    port->begin(115200, 128, 128);
+    port->set_unbuffered_writes(true);
+    port->set_flow_control(AP_HAL::UARTDriver::FLOW_CONTROL_DISABLE);
+
     update_volz_bitmask(bitmask);
 }
 
