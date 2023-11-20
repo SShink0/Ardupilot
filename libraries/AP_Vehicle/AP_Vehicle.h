@@ -109,6 +109,7 @@ public:
     // happen for many reasons - bad mavlink packet and bad mode
     // parameters for example.
     void notify_no_such_mode(uint8_t mode_number);
+    void notify_no_such_mode_name(uint8_t mode_number, const char *mode_name);
 
     void get_common_scheduler_tasks(const AP_Scheduler::Task*& tasks, uint8_t& num_tasks);
     // implementations *MUST* fill in all passed-in fields or we get
