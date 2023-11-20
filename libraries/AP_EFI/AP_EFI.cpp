@@ -26,6 +26,7 @@
 #include "AP_EFI_Scripting.h"
 #include "AP_EFI_MAV.h"
 
+#include "AP_EFI_Serial_EcoEFI.h"
 #include <AP_Logger/AP_Logger.h>
 #include <GCS_MAVLink/GCS.h>
 
@@ -134,6 +135,11 @@ void AP_EFI::init(void)
     case Type::MAV:
             backend = new AP_EFI_MAV(*this);
             break;
+#endif
+#if HAL_EFI_ECO_ENABLED
+    case Type::EcoEFI:
+        backend = new AP_EFI_Serial_EcoEFI(*this);
+        break;
 #endif
     default:
         GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Unknown EFI type");
