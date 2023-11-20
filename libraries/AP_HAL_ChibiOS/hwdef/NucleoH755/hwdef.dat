@@ -15,7 +15,7 @@ define CORE_CM7
 define SMPS_PWR
 
 # board ID for firmware load
-APJ_BOARD_ID 139
+APJ_BOARD_ID AP_HW_DURANDAL
 
 # the nucleo seems to have trouble with flashing the last sector?
 FLASH_SIZE_KB 2048

@@ -11,7 +11,7 @@ define SMPS_PWR
 define HAL_BUILD_AP_PERIPH
 
 # board ID for firmware load
-APJ_BOARD_ID 1079
+APJ_BOARD_ID AP_HW_CUBEPILOT_CANMOD
 
 # setup build for a peripheral firmware
 env AP_PERIPH 1
