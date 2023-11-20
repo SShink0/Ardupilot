@@ -287,7 +287,6 @@ void Mode::calc_throttle(float target_speed, bool avoidance_enabled)
 {
     // get acceleration limited target speed
     target_speed = attitude_control.get_desired_speed_accel_limited(target_speed, rover.G_Dt);
-
     // apply object avoidance to desired speed using half vehicle's maximum deceleration
     if (avoidance_enabled) {
         g2.avoid.adjust_speed(0.0f, 0.5f * attitude_control.get_decel_max(), ahrs.yaw, target_speed, rover.G_Dt);
