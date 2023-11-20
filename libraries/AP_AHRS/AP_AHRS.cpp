@@ -34,6 +34,7 @@
 #include <GCS_MAVLink/GCS.h>
 #include <AP_InertialSensor/AP_InertialSensor.h>
 #include <AP_CustomRotations/AP_CustomRotations.h>
+#include <AP_NavEKF3/AP_NavEKF3_feature.h>
 
 #define ATTITUDE_CHECK_THRESH_ROLL_PITCH_RAD radians(10)
 #define ATTITUDE_CHECK_THRESH_YAW_RAD radians(20)
@@ -2263,7 +2264,7 @@ void  AP_AHRS::writeOptFlowMeas(const uint8_t rawFlowQuality, const Vector2f &ra
 #if HAL_NAVEKF2_AVAILABLE
     EKF2.writeOptFlowMeas(rawFlowQuality, rawFlowRates, rawGyroRates, msecFlowMeas, posOffset, heightOverride);
 #endif
-#if HAL_NAVEKF3_AVAILABLE
+#if EK3_FEATURE_OPTFLOW_FUSION
     EKF3.writeOptFlowMeas(rawFlowQuality, rawFlowRates, rawGyroRates, msecFlowMeas, posOffset, heightOverride);
 #endif
 }
@@ -2271,7 +2272,7 @@ void  AP_AHRS::writeOptFlowMeas(const uint8_t rawFlowQuality, const Vector2f &ra
 // retrieve latest corrected optical flow samples (used for calibration)
 bool AP_AHRS::getOptFlowSample(uint32_t& timeStamp_ms, Vector2f& flowRate, Vector2f& bodyRate, Vector2f& losPred) const
 {
-#if HAL_NAVEKF3_AVAILABLE
+#if EK3_FEATURE_OPTFLOW_FUSION
     return EKF3.getOptFlowSample(timeStamp_ms, flowRate, bodyRate, losPred);
 #endif
     return false;

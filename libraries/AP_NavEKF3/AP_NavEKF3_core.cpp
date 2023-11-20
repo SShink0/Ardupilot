@@ -247,7 +247,9 @@ void NavEKF3_core::InitialiseVariables()
     memset(&nextP[0][0], 0, sizeof(nextP));
     flowDataValid = false;
     rangeDataToFuse  = false;
+#if EK3_FEATURE_OPTFLOW_FUSION
     Popt = 0.0f;
+#endif
     terrainState = 0.0f;
     prevPosN = stateStruct.position.x;
     prevPosE = stateStruct.position.y;
@@ -311,7 +313,9 @@ void NavEKF3_core::InitialiseVariables()
     ZERO_FARRAY(statesArray);
     memset(&vertCompFiltState, 0, sizeof(vertCompFiltState));
     posVelFusionDelayed = false;
+#if EK3_FEATURE_OPTFLOW_FUSION
     optFlowFusionDelayed = false;
+#endif
     flowFusionActive = false;
     airSpdFusionDelayed = false;
     sideSlipFusionDelayed = false;
@@ -634,8 +638,10 @@ void NavEKF3_core::CovarianceInit()
     P[23][23]  = P[22][22];
 
 
+#if EK3_FEATURE_OPTFLOW_FUSION
     // optical flow ground height covariance
     Popt = 0.25f;
+#endif
 
 }
 
@@ -695,8 +701,10 @@ void NavEKF3_core::UpdateFilter(bool predict)
         SelectRngBcnFusion();
 #endif
 
+#if EK3_FEATURE_OPTFLOW_FUSION
         // Update states using optical flow data
         SelectFlowFusion();
+#endif
 
 #if EK3_FEATURE_BODY_ODOM
         // Update states using body frame odometry data
