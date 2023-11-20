@@ -554,7 +554,7 @@ public:
         FUNCTOR_BIND_MEMBER(&ModeAuto::exit_mission, void)};
 
     // Mission change detector
-    AP_Mission_ChangeDetector mis_change_detector;
+    AP_Mission_ChangeDetector_Copter mis_change_detector;
 
     // true if weathervaning is allowed in auto
 #if WEATHERVANE_ENABLED == ENABLED
@@ -584,8 +584,6 @@ private:
     bool verify_command(const AP_Mission::Mission_Command& cmd);
     void exit_mission();
 
-    bool check_for_mission_change();    // detect external changes to mission
-
     void takeoff_run();
     void wp_run();
     void land_run();
@@ -605,6 +603,7 @@ private:
     void do_takeoff(const AP_Mission::Mission_Command& cmd);
     void do_nav_wp(const AP_Mission::Mission_Command& cmd);
     bool set_next_wp(const AP_Mission::Mission_Command& current_cmd, const Location &default_loc);
+    bool mission_changed_add_next_wp();
     void do_land(const AP_Mission::Mission_Command& cmd);
     void do_loiter_unlimited(const AP_Mission::Mission_Command& cmd);
     void do_circle(const AP_Mission::Mission_Command& cmd);
