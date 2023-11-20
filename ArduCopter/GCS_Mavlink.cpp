@@ -956,6 +956,9 @@ MAV_RESULT GCS_MAVLINK_Copter::handle_MAV_CMD_MISSION_START(const mavlink_comman
             if (copter.mode_auto.mission.state() != AP_Mission::MISSION_RUNNING) {
                 copter.mode_auto.mission.start_or_resume();
             }
+            if (!is_zero(packet.param1) || !is_zero(packet.param2)) {
+                gcs().send_text(MAV_SEVERITY_NOTICE, "Ignore the mission execution range (%d to %d)", int32_t(packet.param1), int32_t(packet.param2));
+            }
             return MAV_RESULT_ACCEPTED;
         }
         return MAV_RESULT_FAILED;
