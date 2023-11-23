@@ -18,6 +18,7 @@
 #if AP_RPM_ENABLED
 
 #include "AP_RPM.h"
+#include <AP_Logger/AP_Logger.h>
 
 #if HAL_WITH_ESC_TELEM
 #include "AP_ESC_Telem/AP_ESC_Telem.h"
@@ -50,5 +51,29 @@ void AP_RPM_Backend::update_esc_telem_outbound()
     AP::esc_telem().update_rpm(esc_index-1, state.rate_rpm, 0);
 }
 #endif
+
+#if HAL_LOGGING_ENABLED
+void AP_RPM_Backend::Log_RPM() const
+{
+    float rpm = -1;
+    ap_rpm.get_rpm(state.instance, rpm);
+
+// @LoggerMessage: RPM
+// @Description: Data from RPM sensors
+// @Field: TimeUS: Time since system startup
+// @Field: Instance: RPM instance number
+// @Field: rpm: Rotations Per Minute data
+    AP::logger().WriteStreaming(
+            "RPM",
+            "TimeUS,Instance,rpm",
+            "s#q",
+            "F-0",
+            "QBf",
+            AP_HAL::micros64(),
+            state.instance,
+            rpm);
+}
+#endif // HAL_LOGGING_ENABLED
+
 
 #endif  // AP_RPM_ENABLED
