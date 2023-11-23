@@ -19,9 +19,15 @@
 // only default to EK2 enabled on boards with over 1M flash
 #define HAL_NAVEKF2_AVAILABLE (BOARD_FLASH_SIZE>1024)
 #endif
+#undef HAL_NAVEKF2_AVAILABLE
+#define HAL_NAVEKF2_AVAILABLE 0
 
 #ifndef HAL_NAVEKF3_AVAILABLE
 #define HAL_NAVEKF3_AVAILABLE 1
+#endif
+
+#ifndef AP_AHRS_NAVEKF3_ENABLED
+#define AP_AHRS_NAVEKF3_ENABLED HAL_NAVEKF3_AVAILABLE
 #endif
 
 #ifndef AP_AHRS_SIM_ENABLED
@@ -32,3 +38,4 @@
 #define AP_AHRS_POSITION_RESET_ENABLED (BOARD_FLASH_SIZE>1024)
 #endif
 
+#define AP_AHRS_NAVEKF_SETTLE_TIME_MS 20000     // time in milliseconds the ekf needs to settle after being started

@@ -25,6 +25,7 @@
 #include <AP_Airspeed/AP_Airspeed.h>
 #include <AP_InertialSensor/AP_InertialSensor.h>
 #include <AP_Common/Location.h>
+#include <AP_NavEKF/AP_NavEKF_Source.h>
 
 #define AP_AHRS_TRIM_LIMIT 10.0f        // maximum trim angle in degrees
 #define AP_AHRS_RP_P_MIN   0.05f        // minimum value for AHRS_RP_P parameter
@@ -50,39 +51,139 @@ public:
 
     // structure to retrieve results from backends:
     struct Estimates {
+        friend class AP_AHRS_DCM;
+        friend class AP_AHRS_External;
+        friend class AP_AHRS_NavEKF3;
+        friend class AP_AHRS_SIM;
+
+        bool initialised;
+        bool healthy;
+
+        uint8_t primary_imu_index;
+        int8_t primary_core_index;
+
         float roll_rad;
         float pitch_rad;
         float yaw_rad;
         Matrix3f dcm_matrix;
+        Quaternion quat;
+
+        bool attitude_valid;
+
+        // return the quaternion defining the rotation from NED to XYZ
+        // (body) axes
+        bool get_quaternion(Quaternion &_quat) const WARN_IF_UNUSED {
+            _quat = quat;
+            return attitude_valid;
+        }
+
         Vector3f gyro_estimate;
         Vector3f gyro_drift;
         Vector3f accel_ef;
         Vector3f accel_bias;
 
-        Location location;
-        bool location_valid;
+        bool get_velocity_NED(Vector3f &vel) const WARN_IF_UNUSED {
+            if (velocity_NED_valid) {
+                vel = velocity_NED;
+            }
+            return velocity_NED_valid;
+        };
+        bool get_vert_pos_rate_D(float &velocity) const WARN_IF_UNUSED {
+            velocity = vert_pos_rate_D;
+            return vert_pos_rate_D_valid;
+        }
 
-        bool get_location(Location &loc) const {
+        // ground vector estimate in meters/second, in North/East order
+        Vector2f groundspeed_vector;
+
+        bool get_location(Location &loc) const WARN_IF_UNUSED {
             loc = location;
             return location_valid;
         };
+
+        // origin-relative movement:
+        bool get_origin(Location &ret) const {
+            ret = origin;
+            return origin_valid;
+        }
+        bool  get_relative_position_NED_origin(Vector3f &vec) const WARN_IF_UNUSED {
+            vec = relative_position_NED_origin;
+            return relative_position_NED_origin_valid;
+        }
+
+        bool  get_relative_position_NE_origin(Vector2f &vec) const WARN_IF_UNUSED {
+            vec = relative_position_NE_origin;
+            return relative_position_NE_origin_valid;
+        }
+
+        bool  get_relative_position_D_origin(float &down) const WARN_IF_UNUSED {
+            down = relative_position_D_origin;
+            return relative_position_D_origin_valid;
+        }
+
+        bool get_hagl(float &height) const WARN_IF_UNUSED {
+            height = hagl;
+            return hagl_valid;
+        }
+
+        bool wind_estimate(Vector3f &_wind) const WARN_IF_UNUSED {
+            _wind = wind;
+            return wind_valid;
+        }
+
+        void get_control_limits(float &_ekfGndSpdLimit, float &_controlScaleXY) const {
+            _ekfGndSpdLimit = ekfGndSpdLimit;
+            _controlScaleXY = controlScaleXY;
+        }
+
+    private:
+
+        Vector3f velocity_NED;
+        bool velocity_NED_valid;
+
+        // A derivative of the vertical position in m/s which is
+        // kinematically consistent with the vertical position is
+        // required by some control loops.  This is different to the
+        // vertical velocity from the EKF which is not always
+        // consistent with the vertical position due to the various
+        // errors that are being corrected for:
+        float vert_pos_rate_D;
+        bool vert_pos_rate_D_valid;
+
+        Location location;
+        bool location_valid;
+
+        // origin for local position:
+        Location origin;
+        bool origin_valid;
+
+        // position relative to origin in meters, North/East/Down
+        // order. This will only be accurate if have_inertial_nav() is
+        // true
+        Vector3f relative_position_NED_origin;
+        bool relative_position_NED_origin_valid;
+        // a position relative to origin in meters, North/East
+        // order
+        Vector2f relative_position_NE_origin;
+        bool relative_position_NE_origin_valid;
+        float relative_position_D_origin;
+        bool relative_position_D_origin_valid;
+
+        float hagl;  // in metres
+        bool hagl_valid;
+
+        // wind estimate, earth frame, metres/second
+        Vector3f wind;
+        bool wind_valid;
+
+        // control limits (with defaults):
+        float ekfGndSpdLimit;
+        float controlScaleXY;
+
     };
 
     // init sets up INS board orientation
     virtual void init();
-
-    // return the index of the primary core or -1 if no primary core selected
-    virtual int8_t get_primary_core_index() const { return -1; }
-
-    // get the index of the current primary accelerometer sensor
-    virtual uint8_t get_primary_accel_index(void) const {
-        return AP::ins().get_primary_accel();
-    }
-
-    // get the index of the current primary gyro sensor
-    virtual uint8_t get_primary_gyro_index(void) const {
-        return AP::ins().get_primary_gyro();
-    }
 
     // Methods
     virtual void update() = 0;
@@ -117,12 +218,6 @@ public:
 
     // reset the current attitude, used on new IMU calibration
     virtual void reset() = 0;
-
-    // get latest altitude estimate above ground level in meters and validity flag
-    virtual bool get_hagl(float &height) const WARN_IF_UNUSED { return false; }
-
-    // return a wind estimation vector, in m/s
-    virtual bool wind_estimate(Vector3f &wind) const = 0;
 
     // return an airspeed estimate if available. return true
     // if we have an estimate
@@ -170,20 +265,6 @@ public:
     #endif
     }
 
-    // return a ground vector estimate in meters/second, in North/East order
-    virtual Vector2f groundspeed_vector(void) = 0;
-
-    // return a ground velocity in meters/second, North/East/Down
-    // order. This will only be accurate if have_inertial_nav() is
-    // true
-    virtual bool get_velocity_NED(Vector3f &vec) const WARN_IF_UNUSED {
-        return false;
-    }
-
-    // Get a derivative of the vertical position in m/s which is kinematically consistent with the vertical position is required by some control loops.
-    // This is different to the vertical velocity from the EKF which is not always consistent with the vertical position due to the various errors that are being corrected for.
-    virtual bool get_vert_pos_rate_D(float &velocity) const = 0;
-
     // returns the estimated magnetic field offsets in body frame
     virtual bool get_mag_field_correction(Vector3f &ret) const WARN_IF_UNUSED {
         return false;
@@ -201,54 +282,9 @@ public:
     virtual bool set_origin(const Location &loc) {
         return false;
     }
-    virtual bool get_origin(Location &ret) const = 0;
-
-    // return a position relative to origin in meters, North/East/Down
-    // order. This will only be accurate if have_inertial_nav() is
-    // true
-    virtual bool get_relative_position_NED_origin(Vector3f &vec) const WARN_IF_UNUSED {
-        return false;
-    }
-
-    // return a position relative to origin in meters, North/East
-    // order. Return true if estimate is valid
-    virtual bool get_relative_position_NE_origin(Vector2f &vecNE) const WARN_IF_UNUSED {
-        return false;
-    }
-
-    // return a Down position relative to origin in meters
-    // Return true if estimate is valid
-    virtual bool get_relative_position_D_origin(float &posD) const WARN_IF_UNUSED {
-        return false;
-    }
-
-    // return ground speed estimate in meters/second. Used by ground vehicles.
-    float groundspeed(void) {
-        return groundspeed_vector().length();
-    }
 
     // return true if we will use compass for yaw
     virtual bool use_compass(void) = 0;
-
-    // return the quaternion defining the rotation from NED to XYZ (body) axes
-    virtual bool get_quaternion(Quaternion &quat) const WARN_IF_UNUSED = 0;
-
-    // return true if the AHRS object supports inertial navigation,
-    // with very accurate position and velocity
-    virtual bool have_inertial_nav(void) const {
-        return false;
-    }
-
-    // is the AHRS subsystem healthy?
-    virtual bool healthy(void) const = 0;
-
-    // true if the AHRS has completed initialisation
-    virtual bool initialised(void) const {
-        return true;
-    };
-    virtual bool started(void) const {
-        return initialised();
-    };
 
     // return the amount of yaw angle change due to the last yaw angle reset in radians
     // returns the time of the last yaw angle reset or 0 if no reset has ever occurred
@@ -297,26 +333,20 @@ public:
     // indicates perfect consistency between the measurement and the EKF solution and a value of 1 is the maximum
     // inconsistency that will be accepted by the filter
     // boolean false is returned if variances are not available
-    virtual bool get_variances(float &velVar, float &posVar, float &hgtVar, Vector3f &magVar, float &tasVar) const {
+    virtual bool get_variances(float &velVar, float &posVar, float &hgtVar, Vector3f &magVar, float &tasVar, Vector2f &offset) const {
         return false;
     }
 
     // get a source's velocity innovations.  source should be from 0 to 7 (see AP_NavEKF_Source::SourceXY)
     // returns true on success and results are placed in innovations and variances arguments
-    virtual bool get_vel_innovations_and_variances_for_source(uint8_t source, Vector3f &innovations, Vector3f &variances) const WARN_IF_UNUSED {
+    virtual bool get_vel_innovations_and_variances_for_source(AP_NavEKF_Source::SourceXY source, Vector3f &innovations, Vector3f &variances) const WARN_IF_UNUSED {
         return false;
     }
 
     virtual void send_ekf_status_report(class GCS_MAVLINK &link) const = 0;
 
-    // get_hgt_ctrl_limit - get maximum height to be observed by the
-    // control loops in meters and a validity flag.  It will return
-    // false when no limiting is required
-    virtual bool get_hgt_ctrl_limit(float &limit) const WARN_IF_UNUSED { return false; };
-
     // Set to true if the terrain underneath is stable enough to be used as a height reference
     // this is not related to terrain following
     virtual void set_terrain_hgt_stable(bool stable) {}
 
-    virtual void get_control_limits(float &ekfGndSpdLimit, float &controlScaleXY) const = 0;
 };
