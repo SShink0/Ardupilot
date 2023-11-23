@@ -19,6 +19,8 @@
 // only default to EK2 enabled on boards with over 1M flash
 #define HAL_NAVEKF2_AVAILABLE (BOARD_FLASH_SIZE>1024)
 #endif
+#undef HAL_NAVEKF2_AVAILABLE
+#define HAL_NAVEKF2_AVAILABLE 0
 
 #ifndef HAL_NAVEKF3_AVAILABLE
 #define HAL_NAVEKF3_AVAILABLE 1
