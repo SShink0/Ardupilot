@@ -50,7 +50,9 @@ static Empty::UARTDriver uartHDriver;
 static Empty::UARTDriver uartIDriver;
 static Empty::UARTDriver uartJDriver;
 
+#if HAL_WITH_DSP
 static Empty::DSP dspDriver;
+#endif
 
 static ESP32::I2CDeviceManager i2cDeviceManager;
 static ESP32::SPIDeviceManager spiDeviceManager;
@@ -95,7 +97,9 @@ HAL_ESP32::HAL_ESP32() :
         &utilInstance,
         &opticalFlowDriver,
         &flashDriver,
+#if HAL_WITH_DSP
         &dspDriver,
+#endif
         nullptr
     )
 {}

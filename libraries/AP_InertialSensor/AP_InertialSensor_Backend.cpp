@@ -442,8 +442,14 @@ void AP_InertialSensor_Backend::log_gyro_raw(uint8_t instance, const uint64_t sa
         return;
     }
 
+#if AP_AHRS_ENABLED
+    const bool is_primary_instance = (instance == AP::ahrs().get_primary_gyro_index());
+#else
+    const bool is_primary_instance = false;
+#endif
+
     if (_imu.raw_logging_option_set(AP_InertialSensor::RAW_LOGGING_OPTION::ALL_GYROS) ||
-        (_imu.raw_logging_option_set(AP_InertialSensor::RAW_LOGGING_OPTION::PRIMARY_GYRO_ONLY) && (instance == AP::ahrs().get_primary_gyro_index())) ||
+        (_imu.raw_logging_option_set(AP_InertialSensor::RAW_LOGGING_OPTION::PRIMARY_GYRO_ONLY) && is_primary_instance) ||
         should_log_imu_raw()) {
 
         if (_imu.raw_logging_option_set(AP_InertialSensor::RAW_LOGGING_OPTION::PRE_AND_POST_FILTER)) {

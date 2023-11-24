@@ -23,6 +23,8 @@
 
 #include "AP_AHRS_config.h"
 
+#if AP_AHRS_ENABLED
+
 #include <AP_HAL/Semaphores.h>
 
 #include <AP_NavEKF2/AP_NavEKF2.h>
@@ -996,3 +998,5 @@ private:
 namespace AP {
     AP_AHRS &ahrs();
 };
+
+#endif

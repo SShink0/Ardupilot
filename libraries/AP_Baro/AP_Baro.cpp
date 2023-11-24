@@ -17,6 +17,11 @@
  *       APM_Baro.cpp - barometer driver
  *
  */
+
+#include "AP_Baro_config.h"
+
+#if AP_BARO_ENABLED
+
 #include "AP_Baro.h"
 
 #include <utility>
@@ -54,7 +59,6 @@
 #include <AP_Arming/AP_Arming.h>
 #include <AP_Logger/AP_Logger.h>
 #include <AP_GPS/AP_GPS.h>
-#include <AP_Vehicle/AP_Vehicle.h>
 
 #define INTERNAL_TEMPERATURE_CLAMP 35.0f
 
@@ -997,6 +1001,7 @@ bool AP_Baro::healthy(uint8_t instance) const {
 }
 #endif
 
+#if AP_AHRS_ENABLED
 /*
   update field elevation value
  */
@@ -1034,6 +1039,7 @@ void AP_Baro::update_field_elevation(void)
         BARO_SEND_TEXT(MAV_SEVERITY_INFO, "Field Elevation Set: %.0fm", _field_elevation_active);
     }
 }
+#endif
 
 /*
   call accumulate on all drivers
@@ -1147,3 +1153,5 @@ AP_Baro &baro()
 }
 
 };
+
+#endif  // AP_BARO_ENABLED

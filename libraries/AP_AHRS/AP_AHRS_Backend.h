@@ -20,6 +20,10 @@
  *
  */
 
+#include "AP_AHRS_config.h"
+
+#if AP_AHRS_ENABLED
+
 #include <AP_Math/AP_Math.h>
 #include <inttypes.h>
 #include <AP_Airspeed/AP_Airspeed.h>
@@ -76,12 +80,20 @@ public:
 
     // get the index of the current primary accelerometer sensor
     virtual uint8_t get_primary_accel_index(void) const {
+#if AP_INERTIALSENSOR_ENABLED
         return AP::ins().get_primary_accel();
+#else
+        return 0;
+#endif
     }
 
     // get the index of the current primary gyro sensor
     virtual uint8_t get_primary_gyro_index(void) const {
+#if AP_INERTIALSENSOR_ENABLED
         return AP::ins().get_primary_gyro();
+#else
+        return 0;
+#endif
     }
 
     // Methods
@@ -320,3 +332,5 @@ public:
 
     virtual void get_control_limits(float &ekfGndSpdLimit, float &controlScaleXY) const = 0;
 };
+
+#endif  // AP_AHRS_ENABLED
