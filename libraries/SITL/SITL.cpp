@@ -455,6 +455,7 @@ const AP_Param::GroupInfo SIM::var_info3[] = {
     // @Bitmask: 0:MAVLink,3:SageTechMXS
     AP_GROUPINFO("ADSB_TYPES",    52, SIM,  adsb_types, 1),
 
+    AP_SUBGROUPEXTENSION("",      62, SIM,  var_uart),
 #ifdef SFML_JOYSTICK
     AP_SUBGROUPEXTENSION("",      63, SIM,  var_sfml_joystick),
 #endif // SFML_JOYSTICK
@@ -765,6 +766,42 @@ const AP_Param::GroupInfo SIM::var_mag[] = {
     // @User: Advanced
     AP_GROUPINFO("MAG_SAVE_IDS", 37, SIM, mag_save_ids, 1),
 
+    AP_GROUPEND
+};
+
+// this mapping captures the historical use of uartB as SERIAL3
+const AP_Param::GroupInfo SIM::var_uart[] =
+{
+    // @Param: S0_PKT_LOSS
+    // @DisplayName: UART 0 Packet Loss
+    // @Description: Sets percentage of incomming/outgoing packet loss on UART 0. This parameter is not persistent and will be reset to 0 every time the vehicle is rebooted.
+    // @Units: %
+    // @Range: 0 100
+    // @User: Advanced
+    AP_GROUPINFO("S0_PKT_LOSS",    1, SIM,  uart_pkt_loss_pct[0], 0),
+    AP_GROUPINFO("S1_PKT_LOSS",    2, SIM,  uart_pkt_loss_pct[1], 0),
+    AP_GROUPINFO("S2_PKT_LOSS",    3, SIM,  uart_pkt_loss_pct[2], 0),
+    AP_GROUPINFO("S3_PKT_LOSS",    4, SIM,  uart_pkt_loss_pct[3], 0),
+    AP_GROUPINFO("S4_PKT_LOSS",    5, SIM,  uart_pkt_loss_pct[4], 0),
+    AP_GROUPINFO("S5_PKT_LOSS",    6, SIM,  uart_pkt_loss_pct[5], 0),
+    AP_GROUPINFO("S6_PKT_LOSS",    7, SIM,  uart_pkt_loss_pct[6], 0),
+    AP_GROUPINFO("S7_PKT_LOSS",    8, SIM,  uart_pkt_loss_pct[7], 0),
+    AP_GROUPINFO("S8_PKT_LOSS",    9, SIM,  uart_pkt_loss_pct[8], 0),
+    // @Param: S0_DELAY_MS
+    // @DisplayName: UART 0 Delay
+    // @Description: Sets in/out delay in milliseconds for UART 0 to simulate ping time. This parameter is not persistent and will be reset to 0 every time the vehicle is rebooted.
+    // @Units: %
+    // @Range: 0 100
+    // @User: Advanced
+    AP_GROUPINFO("S0_DELAY_MS",   10, SIM,  uart_pkt_delay_ms[0], 0),
+    AP_GROUPINFO("S1_DELAY_MS",   11, SIM,  uart_pkt_delay_ms[1], 0),
+    AP_GROUPINFO("S2_DELAY_MS",   12, SIM,  uart_pkt_delay_ms[2], 0),
+    AP_GROUPINFO("S3_DELAY_MS",   13, SIM,  uart_pkt_delay_ms[3], 0),
+    AP_GROUPINFO("S4_DELAY_MS",   14, SIM,  uart_pkt_delay_ms[4], 0),
+    AP_GROUPINFO("S5_DELAY_MS",   15, SIM,  uart_pkt_delay_ms[5], 0),
+    AP_GROUPINFO("S6_DELAY_MS",   16, SIM,  uart_pkt_delay_ms[6], 0),
+    AP_GROUPINFO("S7_DELAY_MS",   17, SIM,  uart_pkt_delay_ms[7], 0),
+    AP_GROUPINFO("S8_DELAY_MS",   18, SIM,  uart_pkt_delay_ms[8], 0),
     AP_GROUPEND
 };
 
