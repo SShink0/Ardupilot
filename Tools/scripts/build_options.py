@@ -373,6 +373,11 @@ BUILD_OPTIONS = [
     #    Feature('Filesystem', 'FILESYSTEM_POSIX', 'AP_FILESYSTEM_POSIX_ENABLED', 'Enable POSIX filesystem', 0, None),
     Feature('Filesystem', 'FILESYSTEM_ROMFS', 'AP_FILESYSTEM_ROMFS_ENABLED', 'Enable @ROMFS/ filesystem', 0, None),
     Feature('Filesystem', 'FILESYSTEM_SYS', 'AP_FILESYSTEM_SYS_ENABLED', 'Enable @SYS/ filesystem', 0, None),
+
+    Feature('Winch Support', 'Ap_Winch', 'AP_WINCH_ENABLED', 'Enable Winch support', 0, None),
+    Feature('Winch Support', 'Ap_Winch', 'AP_WINCH_DAIWA_ENABLED', 'Enable DAIWA Winch support', 0, None),
+    Feature('Winch Support', 'Ap_Winch', 'AP_WINCH_PWM_ENABLED', 'Enable PWM Winch support', 0, None),
+
 ]
 
 BUILD_OPTIONS.sort(key=lambda x: (x.category + x.label))
