@@ -143,7 +143,8 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
         else:
             self.set_rc(3, takeoff_throttle)
         self.wait_altitude(alt_min-1, alt_min+max_err, relative=True, timeout=timeout)
-        self.hover()
+        if mode != 'GUIDED':
+            self.hover()
         self.progress("TAKEOFF COMPLETE")
 
     def land_and_disarm(self, timeout=60):
@@ -10605,6 +10606,38 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
 
         self.reboot_sitl()  # unlock home position
 
+    def RC_OVERRIDES_with_GCS_FAILSAFE(self):
+        '''Ensure RC overrides not used during GCS failsafe'''
+        self.set_parameters({
+            "SYSID_MYGCS": self.mav.source_system,
+            "FS_GCS_ENABLE": 5,  # land
+        })
+        self.rc_thread_should_send = False
+        self.reboot_sitl()
+        self.takeoff(20, mode='GUIDED')
+        self.progress("Using RC override to get some speedup")
+        self.change_mode('LOITER')
+
+        def do_pitch(x, a, b):
+            self.mav.mav.manual_control_send(
+                1, # target system
+                500, # x (pitch)
+                32767, # y (roll)
+                500, # z (thrust)
+                32767, # r (yaw)
+                0) # button mask
+
+        self.wait_groundspeed(5, 100, called_function=do_pitch)
+
+        self.progress("Creating GCS failsafe")
+        self.set_heartbeat_rate(0)
+
+        self.wait_mode("LAND")
+        self.wait_groundspeed(0)
+        relative_alt = self.get_altitude(relative=True)
+        if relative_alt < 25:
+            raise NotAchievedException("Did not come to zero velocity")
+
     def tests2b(self):  # this block currently around 9.5mins here
         '''return list of all tests'''
         ret = ([
@@ -10678,6 +10711,7 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
             self.MAV_CMD_SET_EKF_SOURCE_SET,
             self.MAV_CMD_NAV_TAKEOFF,
             self.MAV_CMD_NAV_TAKEOFF_command_int,
+            self.RC_OVERRIDES_with_GCS_FAILSAFE,
         ])
         return ret
 

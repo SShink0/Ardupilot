@@ -1591,6 +1591,7 @@ class TestSuite(ABC):
 
         self.rc_thread = None
         self.rc_thread_should_quit = False
+        self.rc_thread_should_send = True
         self.rc_queue = Queue.Queue()
 
         self.expect_list = []
@@ -5144,6 +5145,9 @@ class TestSuite(ABC):
         while True:
             if self.rc_thread_should_quit:
                 break
+            if not self.rc_thread_should_send:
+                time.sleep(0.1)
+                continue
 
             # the 0.05 here means we're updating the RC values into
             # the autopilot at 20Hz - that's our 50Hz wallclock, , not
@@ -8259,6 +8263,7 @@ Also, ignores heartbeats not from our target system'''
 
     def run_one_test_attempt(self, test, interact=False, attempt=1, suppress_stdout=False):
         '''called by run_one_test to actually run the test in a retry loop'''
+        self.rc_thread_should_send = True
         name = test.name
         desc = test.description
         test_function = test.function
