@@ -307,7 +307,9 @@ protected:
 #if HAL_BUTTON_ENABLED
     AP_Button button;
 #endif
+#if AP_RANGEFINDER_ENABLED
     RangeFinder rangefinder;
+#endif
 
 #if AP_RSSI_ENABLED
     AP_RSSI rssi;
