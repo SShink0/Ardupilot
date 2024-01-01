@@ -1080,6 +1080,9 @@ ap_message GCS_MAVLINK::mavlink_id_to_ap_message_id(const uint32_t mavlink_id) c
 #if AP_MAVLINK_MSG_RELAY_STATUS_ENABLED
         { MAVLINK_MSG_ID_RELAY_STATUS, MSG_RELAY_STATUS},
 #endif
+#if AP_AIRSPEED_ENABLED
+        { MAVLINK_MSG_ID_AIRSPEED, MSG_AIRSPEED},
+#endif
             };
 
     for (uint8_t i=0; i<ARRAY_SIZE(map); i++) {
@@ -5986,6 +5989,17 @@ bool GCS_MAVLINK::try_send_message(const enum ap_message id)
         CHECK_PAYLOAD_SIZE(SCALED_PRESSURE3);
         send_scaled_pressure3();
         break;
+
+#if AP_AIRSPEED_ENABLED
+    case MSG_AIRSPEED:
+        {
+            AP_Airspeed *airspeed = AP_Airspeed::get_singleton();
+            if (airspeed != nullptr) {
+                airspeed->send_mavlink_airspeed(*this);
+            }
+        }
+        break;
+#endif
 
     case MSG_SERVO_OUTPUT_RAW:
         CHECK_PAYLOAD_SIZE(SERVO_OUTPUT_RAW);

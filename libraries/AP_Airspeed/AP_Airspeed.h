@@ -225,6 +225,8 @@ public:
     // get aggregate calibration state for the Airspeed library:
     CalibrationState get_calibration_state() const;
 
+    void send_mavlink_airspeed(class GCS_MAVLINK &link);
+
 private:
     static AP_Airspeed *_singleton;
 
@@ -289,6 +291,10 @@ private:
     uint8_t num_sensors;
 
     uint32_t _log_bit = -1;     // stores which bit in LOG_BITMASK is used to indicate we should log airspeed readings
+
+    // Index of last airspeed sensor to be sent over MAVLink
+    // Used to rotate which sensor is sent
+    uint8_t last_mavlink_airspeed_idx;
 
     void read(uint8_t i);
     // return the differential pressure in Pascal for the last airspeed reading for the requested instance

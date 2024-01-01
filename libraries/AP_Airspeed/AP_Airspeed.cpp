@@ -23,6 +23,7 @@
 #include "AP_Airspeed.h"
 
 #include <AP_Vehicle/AP_Vehicle_Type.h>
+#include <GCS_MAVLink/GCS_config.h>
 
 // Dummy the AP_Airspeed class to allow building Airspeed only for plane, rover, sub, and copter & heli 2MB boards
 // This could be removed once the build system allows for APM_BUILD_TYPE in header files
@@ -41,6 +42,7 @@
 #include <GCS_MAVLink/GCS.h>
 #include <SRV_Channel/SRV_Channel.h>
 #include <AP_Logger/AP_Logger.h>
+#include <AP_AHRS/AP_AHRS.h>
 #include <utility>
 #include "AP_Airspeed_MS4525.h"
 #include "AP_Airspeed_MS5525.h"
@@ -922,6 +924,56 @@ bool AP_Airspeed::get_hygrometer(uint8_t i, uint32_t &last_sample_ms, float &tem
 }
 #endif // AP_AIRSPEED_HYGROMETER_ENABLE
 
+#if HAL_GCS_ENABLED
+void AP_Airspeed::send_mavlink_airspeed(GCS_MAVLINK &link)
+{
+    if (!HAVE_PAYLOAD_SPACE(link.get_chan(), AIRSPEED)) {
+        return;
+    }
+
+    for (uint8_t i=0; i<AIRSPEED_MAX_SENSORS; i++) {
+        // Try and send the next sensor
+        const uint8_t index = (last_mavlink_airspeed_idx + 1 + i) % AIRSPEED_MAX_SENSORS;
+        if (!enabled(index)) {
+            continue;
+        }
+
+        float temperature_float;
+        int16_t temperature = INT16_MAX;
+        if (get_temperature(index, temperature_float)) {
+            temperature = int16_t(temperature_float * 100);
+        }
+
+        uint8_t flags = 0;
+
+        // Set unhealthy flag
+        if (!healthy(index)) {
+            flags |= 1U << AIRSPEED_SENSOR_FLAGS::AIRSPEED_SENSOR_UNHEALTHY;
+        }
+
+        // Set using flag if the AHRS is using this sensor
+        const AP_AHRS &ahrs = AP::ahrs();
+        if (ahrs.using_airspeed_sensor() && (ahrs.get_active_airspeed_index() == index)) {
+            flags |= 1U << AIRSPEED_SENSOR_FLAGS::AIRSPEED_SENSOR_USING;
+        }
+
+        mavlink_airspeed_t msg {
+            airspeed    : get_airspeed(index),
+            raw_press   : get_differential_pressure(index),
+            temperature : temperature,
+            id          : index,
+            flags       : flags
+        };
+
+        mavlink_msg_airspeed_send_struct(link.get_chan(), &msg);
+
+        // Only send one msg per call
+        last_mavlink_airspeed_idx = index;
+        return;
+    }
+}
+#endif
+
 #else  // build type is not appropriate; provide a dummy implementation:
 const AP_Param::GroupInfo AP_Airspeed::var_info[] = { AP_GROUPEND };
 
@@ -942,6 +994,10 @@ void AP_Airspeed::handle_msp(const MSP::msp_airspeed_data_message_t &pkt) {}
 bool AP_Airspeed::all_healthy(void) const { return false; }
 void AP_Airspeed::init(void) {};
 AP_Airspeed::AP_Airspeed() {}
+
+#if HAL_GCS_ENABLED
+void AP_Airspeed::send_mavlink_airspeed(class GCS_MAVLINK &link) {}
+#endif
 
 #endif // #if AP_AIRSPEED_DUMMY_METHODS_ENABLED
 
