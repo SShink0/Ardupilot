@@ -346,7 +346,7 @@ void AP_AHRS::update_state(void)
     state.location_ok = _get_location(state.location);
     state.secondary_pos_ok = _get_secondary_position(state.secondary_pos);
     state.ground_speed_vec = _groundspeed_vector();
-    state.ground_speed = _groundspeed();
+    state.ground_speed = state.ground_speed_vec.length();
     _getCorrectedDeltaVelocityNED(state.corrected_dv, state.corrected_dv_dt);
     state.origin_ok = _get_origin(state.origin);
     state.velocity_NED_ok = _get_velocity_NED(state.velocity_NED);
@@ -511,6 +511,7 @@ void AP_AHRS::copy_estimates_from_backend_estimates(const AP_AHRS_Backend::Estim
 void AP_AHRS::update_DCM()
 {
     dcm.update();
+    dcm_estimates = {};
     dcm.get_results(dcm_estimates);
 
     // we always update the vehicle's canonical roll/pitch/yaw from
@@ -528,6 +529,7 @@ void AP_AHRS::update_DCM()
 void AP_AHRS::update_SITL(void)
 {
     sim.update();
+    sim_estimates = {};
     sim.get_results(sim_estimates);
 
     if (_active_EKF_type() == EKFType::SIM) {
@@ -681,6 +683,7 @@ void AP_AHRS::update_EKF3(void)
 void AP_AHRS::update_external(void)
 {
     external.update();
+    external_estimates = {};
     external.get_results(external_estimates);
 
     if (_active_EKF_type() == EKFType::EXTERNAL) {
@@ -785,12 +788,12 @@ bool AP_AHRS::_wind_estimate(Vector3f &wind) const
     switch (active_EKF_type()) {
 #if AP_AHRS_DCM_ENABLED
     case EKFType::DCM:
-        return dcm.wind_estimate(wind);
+        return dcm_estimates.wind_estimate(wind);
 #endif
 
 #if AP_AHRS_SIM_ENABLED
     case EKFType::SIM:
-        return sim.wind_estimate(wind);
+        return sim_estimates.wind_estimate(wind);
 #endif
 
 #if HAL_NAVEKF2_AVAILABLE
@@ -806,7 +809,7 @@ bool AP_AHRS::_wind_estimate(Vector3f &wind) const
 
 #if HAL_EXTERNAL_AHRS_ENABLED
     case EKFType::EXTERNAL:
-        return external.wind_estimate(wind);
+        return external_estimates.wind_estimate(wind);
 #endif
     }
     return false;
@@ -1119,7 +1122,7 @@ bool AP_AHRS::_get_quaternion(Quaternion &quat) const
     switch (active_EKF_type()) {
 #if AP_AHRS_DCM_ENABLED
     case EKFType::DCM:
-        if (!dcm.get_quaternion(quat)) {
+        if (!dcm_estimates.get_quaternion(quat)) {
             return false;
         }
         break;
@@ -1142,7 +1145,7 @@ bool AP_AHRS::_get_quaternion(Quaternion &quat) const
 #endif
 #if AP_AHRS_SIM_ENABLED
     case EKFType::SIM:
-        if (!sim.get_quaternion(quat)) {
+        if (!sim_estimates.get_quaternion(quat)) {
             return false;
         }
         break;
@@ -1150,7 +1153,7 @@ bool AP_AHRS::_get_quaternion(Quaternion &quat) const
 #if HAL_EXTERNAL_AHRS_ENABLED
     case EKFType::EXTERNAL:
         // we assume the external AHRS isn't trimmed with the autopilot!
-        return external.get_quaternion(quat);
+        return external_estimates.get_quaternion(quat);
 #endif
     }
 
@@ -1175,7 +1178,7 @@ bool AP_AHRS::_get_secondary_attitude(Vector3f &eulers) const
         eulers[0] = dcm_estimates.roll_rad;
         eulers[1] = dcm_estimates.pitch_rad;
         eulers[2] = dcm_estimates.yaw_rad;
-        return true;
+        return dcm_estimates.attitude_valid;
 #endif
 
 #if HAL_NAVEKF2_AVAILABLE
@@ -1204,6 +1207,7 @@ bool AP_AHRS::_get_secondary_attitude(Vector3f &eulers) const
         eulers[0] = external_estimates.roll_rad;
         eulers[1] = external_estimates.pitch_rad;
         eulers[2] = external_estimates.yaw_rad;
+//        return external_estimates.attitude_valid;
         return true;
     }
 #endif
@@ -1227,7 +1231,7 @@ bool AP_AHRS::_get_secondary_quaternion(Quaternion &quat) const
 #if AP_AHRS_DCM_ENABLED
     case EKFType::DCM:
         // DCM is secondary
-        if (!dcm.get_quaternion(quat)) {
+        if (!dcm_estimates.get_quaternion(quat)) {
             return false;
         }
         break;
@@ -1262,7 +1266,7 @@ bool AP_AHRS::_get_secondary_quaternion(Quaternion &quat) const
 #if HAL_EXTERNAL_AHRS_ENABLED
     case EKFType::EXTERNAL:
         // External is secondary
-        return external.get_quaternion(quat);
+        return external_estimates.get_quaternion(quat);
 #endif
     }
 
@@ -1284,7 +1288,7 @@ bool AP_AHRS::_get_secondary_position(Location &loc) const
 #if AP_AHRS_DCM_ENABLED
     case EKFType::DCM:
         // return DCM position
-        loc = dcm_estimates.location;
+        UNUSED_RESULT(dcm_estimates.get_location(loc));
         // FIXME: we intentionally do not return whether location is
         // actually valid here so we continue to send mavlink messages
         // and log data:
@@ -1328,7 +1332,7 @@ Vector2f AP_AHRS::_groundspeed_vector(void)
     switch (active_EKF_type()) {
 #if AP_AHRS_DCM_ENABLED
     case EKFType::DCM:
-        return dcm.groundspeed_vector();
+        return dcm_estimates.groundspeed_vector;
 #endif
 
 #if HAL_NAVEKF2_AVAILABLE
@@ -1349,42 +1353,15 @@ Vector2f AP_AHRS::_groundspeed_vector(void)
 
 #if AP_AHRS_SIM_ENABLED
     case EKFType::SIM:
-        return sim.groundspeed_vector();
+        return sim_estimates.groundspeed_vector;
 #endif
 #if HAL_EXTERNAL_AHRS_ENABLED
     case EKFType::EXTERNAL: {
-        return external.groundspeed_vector();
+        return external_estimates.groundspeed_vector;
     }
 #endif
     }
     return Vector2f();
-}
-
-float AP_AHRS::_groundspeed(void)
-{
-    switch (active_EKF_type()) {
-#if AP_AHRS_DCM_ENABLED
-    case EKFType::DCM:
-        return dcm.groundspeed();
-#endif
-#if HAL_NAVEKF2_AVAILABLE
-    case EKFType::TWO:
-#endif
-
-#if HAL_NAVEKF3_AVAILABLE
-    case EKFType::THREE:
-#endif
-
-#if HAL_EXTERNAL_AHRS_ENABLED
-    case EKFType::EXTERNAL:
-#endif
-
-#if AP_AHRS_SIM_ENABLED
-    case EKFType::SIM:
-#endif
-        break;
-    }
-    return groundspeed_vector().length();
 }
 
 // set the EKF's origin location in 10e7 degrees.  This should only
@@ -1475,15 +1452,15 @@ bool AP_AHRS::_get_velocity_NED(Vector3f &vec) const
 
 #if AP_AHRS_SIM_ENABLED
     case EKFType::SIM:
-        return sim.get_velocity_NED(vec);
+        return sim_estimates.get_velocity_NED(vec);
 #endif
 #if HAL_EXTERNAL_AHRS_ENABLED
     case EKFType::EXTERNAL:
-        return external.get_velocity_NED(vec);
+        return external_estimates.get_velocity_NED(vec);
 #endif
     }
 #if AP_AHRS_DCM_ENABLED
-    return dcm.get_velocity_NED(vec);
+    return dcm_estimates.get_velocity_NED(vec);
 #endif
     return false;
 }
@@ -1560,7 +1537,7 @@ bool AP_AHRS::get_vert_pos_rate_D(float &velocity) const
     switch (active_EKF_type()) {
 #if AP_AHRS_DCM_ENABLED
     case EKFType::DCM:
-        return dcm.get_vert_pos_rate_D(velocity);
+        return dcm_estimates.get_vert_pos_rate_D(velocity);
 #endif
 
 #if HAL_NAVEKF2_AVAILABLE
@@ -1577,11 +1554,11 @@ bool AP_AHRS::get_vert_pos_rate_D(float &velocity) const
 
 #if AP_AHRS_SIM_ENABLED
     case EKFType::SIM:
-        return sim.get_vert_pos_rate_D(velocity);
+        return sim_estimates.get_vert_pos_rate_D(velocity);
 #endif
 #if HAL_EXTERNAL_AHRS_ENABLED
     case EKFType::EXTERNAL:
-        return external.get_vert_pos_rate_D(velocity);
+        return external_estimates.get_vert_pos_rate_D(velocity);
 #endif
     }
     // since there is no default case above, this is unreachable
@@ -1594,7 +1571,7 @@ bool AP_AHRS::get_hagl(float &height) const
     switch (active_EKF_type()) {
 #if AP_AHRS_DCM_ENABLED
     case EKFType::DCM:
-        return false;
+        return dcm_estimates.get_hagl(height);
 #endif
 #if HAL_NAVEKF2_AVAILABLE
     case EKFType::TWO:
@@ -1608,12 +1585,11 @@ bool AP_AHRS::get_hagl(float &height) const
 
 #if AP_AHRS_SIM_ENABLED
     case EKFType::SIM:
-        return sim.get_hagl(height);
+        return sim_estimates.get_hagl(height);
 #endif
 #if HAL_EXTERNAL_AHRS_ENABLED
-    case EKFType::EXTERNAL: {
-        return false;
-    }
+    case EKFType::EXTERNAL:
+        return external_estimates.get_hagl(height);
 #endif
     }
     // since there is no default case above, this is unreachable
@@ -1628,7 +1604,7 @@ bool AP_AHRS::get_relative_position_NED_origin(Vector3f &vec) const
     switch (active_EKF_type()) {
 #if AP_AHRS_DCM_ENABLED
     case EKFType::DCM:
-        return dcm.get_relative_position_NED_origin(vec);
+        return dcm_estimates.get_relative_position_NED_origin(vec);
 #endif
 #if HAL_NAVEKF2_AVAILABLE
     case EKFType::TWO: {
@@ -1662,11 +1638,11 @@ bool AP_AHRS::get_relative_position_NED_origin(Vector3f &vec) const
 
 #if AP_AHRS_SIM_ENABLED
     case EKFType::SIM:
-        return sim.get_relative_position_NED_origin(vec);
+        return sim_estimates.get_relative_position_NED_origin(vec);
 #endif
 #if HAL_EXTERNAL_AHRS_ENABLED
     case EKFType::EXTERNAL: {
-        return external.get_relative_position_NED_origin(vec);
+        return external_estimates.get_relative_position_NED_origin(vec);
     }
 #endif
     }
@@ -1696,7 +1672,7 @@ bool AP_AHRS::get_relative_position_NE_origin(Vector2f &posNE) const
     switch (active_EKF_type()) {
 #if AP_AHRS_DCM_ENABLED
     case EKFType::DCM:
-        return dcm.get_relative_position_NE_origin(posNE);
+        return dcm_estimates.get_relative_position_NE_origin(posNE);
 #endif
 #if HAL_NAVEKF2_AVAILABLE
     case EKFType::TWO: {
@@ -1714,12 +1690,12 @@ bool AP_AHRS::get_relative_position_NE_origin(Vector2f &posNE) const
 
 #if AP_AHRS_SIM_ENABLED
     case EKFType::SIM: {
-        return sim.get_relative_position_NE_origin(posNE);
+        return sim_estimates.get_relative_position_NE_origin(posNE);
     }
 #endif
 #if HAL_EXTERNAL_AHRS_ENABLED
     case EKFType::EXTERNAL:
-        return external.get_relative_position_NE_origin(posNE);
+        return external_estimates.get_relative_position_NE_origin(posNE);
 #endif
     }
     // since there is no default case above, this is unreachable
@@ -1752,7 +1728,7 @@ bool AP_AHRS::get_relative_position_D_origin(float &posD) const
     switch (active_EKF_type()) {
 #if AP_AHRS_DCM_ENABLED
     case EKFType::DCM:
-        return dcm.get_relative_position_D_origin(posD);
+        return dcm_estimates.get_relative_position_D_origin(posD);
 #endif
 #if HAL_NAVEKF2_AVAILABLE
     case EKFType::TWO: {
@@ -1770,11 +1746,11 @@ bool AP_AHRS::get_relative_position_D_origin(float &posD) const
 
 #if AP_AHRS_SIM_ENABLED
     case EKFType::SIM:
-        return sim.get_relative_position_D_origin(posD);
+        return sim_estimates.get_relative_position_D_origin(posD);
 #endif
 #if HAL_EXTERNAL_AHRS_ENABLED
     case EKFType::EXTERNAL:
-        return external.get_relative_position_D_origin(posD);
+        return external_estimates.get_relative_position_D_origin(posD);
 #endif
     }
     // since there is no default case above, this is unreachable
@@ -2043,7 +2019,7 @@ AP_AHRS::EKFType AP_AHRS::fallback_active_EKF_type(void) const
 #endif
 
 #if HAL_EXTERNAL_AHRS_ENABLED
-    if (external.healthy()) {
+    if (external_estimates.healthy) {
         return EKFType::EXTERNAL;
     }
 #endif
@@ -2119,7 +2095,7 @@ bool AP_AHRS::healthy(void) const
 
 #if AP_AHRS_DCM_ENABLED
     case EKFType::DCM:
-        return dcm.healthy();
+        return dcm_estimates.healthy;
 #endif
 
 #if HAL_NAVEKF2_AVAILABLE
@@ -2158,11 +2134,11 @@ bool AP_AHRS::healthy(void) const
 
 #if AP_AHRS_SIM_ENABLED
     case EKFType::SIM:
-        return sim.healthy();
+        return sim_estimates.healthy;
 #endif
 #if HAL_EXTERNAL_AHRS_ENABLED
     case EKFType::EXTERNAL:
-        return external.healthy();
+        return external_estimates.healthy;
 #endif
     }
 
@@ -2247,7 +2223,7 @@ bool AP_AHRS::initialised(void) const
     switch (ekf_type()) {
 #if AP_AHRS_DCM_ENABLED
     case EKFType::DCM:
-        return true;
+        return dcm_estimates.initialised;
 #endif
 
 #if HAL_NAVEKF2_AVAILABLE
@@ -2264,11 +2240,11 @@ bool AP_AHRS::initialised(void) const
 
 #if AP_AHRS_SIM_ENABLED
     case EKFType::SIM:
-        return true;
+        return sim_estimates.initialised;
 #endif
 #if HAL_EXTERNAL_AHRS_ENABLED
     case EKFType::EXTERNAL:
-        return external.initialised();
+        return external_estimates.initialised;
 #endif
     }
     return false;
@@ -2375,7 +2351,7 @@ void AP_AHRS::getControlLimits(float &ekfGndSpdLimit, float &ekfNavVelGainScaler
     switch (active_EKF_type()) {
 #if AP_AHRS_DCM_ENABLED
     case EKFType::DCM:
-        dcm.get_control_limits(ekfGndSpdLimit, ekfNavVelGainScaler);
+        dcm_estimates.get_control_limits(ekfGndSpdLimit, ekfNavVelGainScaler);
         break;
 #endif
 
@@ -2393,14 +2369,13 @@ void AP_AHRS::getControlLimits(float &ekfGndSpdLimit, float &ekfNavVelGainScaler
 
 #if AP_AHRS_SIM_ENABLED
     case EKFType::SIM:
-        sim.get_control_limits(ekfGndSpdLimit, ekfNavVelGainScaler);
+        sim_estimates.get_control_limits(ekfGndSpdLimit, ekfNavVelGainScaler);
         break;
 #endif
 #if HAL_EXTERNAL_AHRS_ENABLED
     case EKFType::EXTERNAL:
         // no limit on gains, large vel limit
-        ekfGndSpdLimit = 400;
-        ekfNavVelGainScaler = 1;
+        external_estimates.get_control_limits(ekfGndSpdLimit, ekfNavVelGainScaler);
         break;
 #endif
     }
@@ -2442,7 +2417,8 @@ bool AP_AHRS::getMagOffsets(uint8_t mag_idx, Vector3f &magOffsets) const
 
 #if AP_AHRS_SIM_ENABLED
     case EKFType::SIM:
-        return sim.get_mag_offsets(mag_idx, magOffsets);
+        magOffsets.zero();
+        return true;
 #endif
 #if HAL_EXTERNAL_AHRS_ENABLED
     case EKFType::EXTERNAL:
@@ -2823,7 +2799,7 @@ bool AP_AHRS::_get_origin(EKFType type, Location &ret) const
     switch (type) {
 #if AP_AHRS_DCM_ENABLED
     case EKFType::DCM:
-        return dcm.get_origin(ret);
+        return dcm_estimates.get_origin(ret);
 #endif
 
 #if HAL_NAVEKF2_AVAILABLE
@@ -2838,11 +2814,11 @@ bool AP_AHRS::_get_origin(EKFType type, Location &ret) const
 
 #if AP_AHRS_SIM_ENABLED
     case EKFType::SIM:
-        return sim.get_origin(ret);
+        return sim_estimates.get_origin(ret);
 #endif
 #if HAL_EXTERNAL_AHRS_ENABLED
     case EKFType::EXTERNAL:
-        return external.get_origin(ret);
+        return external_estimates.get_origin(ret);
 #endif
     }
     return false;
@@ -3165,7 +3141,7 @@ uint8_t AP_AHRS::_get_primary_IMU_index() const
     switch (active_EKF_type()) {
 #if AP_AHRS_DCM_ENABLED
     case EKFType::DCM:
-        break;
+        return dcm_estimates.primary_imu_index;
 #endif
 #if HAL_NAVEKF2_AVAILABLE
     case EKFType::TWO:
@@ -3181,11 +3157,11 @@ uint8_t AP_AHRS::_get_primary_IMU_index() const
 #endif
 #if AP_AHRS_SIM_ENABLED
     case EKFType::SIM:
-        break;
+        return sim_estimates.primary_imu_index;
 #endif
 #if HAL_EXTERNAL_AHRS_ENABLED
     case EKFType::EXTERNAL:
-        break;
+        return external_estimates.primary_imu_index;
 #endif
     }
     if (imu == -1) {
