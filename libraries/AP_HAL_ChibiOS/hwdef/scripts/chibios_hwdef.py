@@ -3065,6 +3065,15 @@ Please run: Tools/scripts/build_bootloaders.py %s
             if name == 'AP_PERIPH' and value != "1":
                 raise ValueError("AP_PERIPH may only have value 1")
             self.env_vars[name] = value
+        elif a[0] == 'unenv':  # remove variable from environment
+            self.progress("Removing environment %s" % ' '.join(a[1:]))
+            if len(a[1:]) < 1:
+                self.error("Bad unenv line for %s" % a[0])
+            name = a[1]
+            try:
+                del self.env_vars[name]
+            except KeyError:
+                pass
         elif a[0] == 'define':
             # extract numerical defines for processing by other parts of the script
             result = re.match(r'define\s*([A-Z_]+)\s*([0-9]+)', line)
