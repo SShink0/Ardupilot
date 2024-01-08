@@ -101,6 +101,8 @@ int16_t char_to_hex(char a)
         return a - 'A' + 10;
     else if (a >= 'a' && a <= 'f')
         return a - 'a' + 10;
-    else
+    else if (a >= '0' && a <= '9')
         return a - '0';
+    else
+        return 255;
 }
