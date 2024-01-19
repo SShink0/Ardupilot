@@ -12,26 +12,23 @@
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#include "AP_Generator_Backend.h"
 
-#if HAL_GENERATOR_ENABLED
+#pragma once
 
-// Base class constructor
-AP_Generator_Backend::AP_Generator_Backend(AP_Generator& frontend) :
-    _frontend(frontend)
-{
-}
+#include "AP_EFI.h"
+#include "AP_EFI_Backend.h"
 
-// Called from the subclass update function to update the frontend variables for accessing
-void AP_Generator_Backend::update_frontend()
-{
-    // Update the values in the front end
-    _frontend._voltage = _voltage;
-    _frontend._current = _current;
-    _frontend._consumed_mah = _consumed_mah;
-    _frontend._fuel_remaining = _fuel_remaining;
-    _frontend._fuel_remain_l = _fuel_remain_l;
-    _frontend._rpm = _rpm;
-    _frontend._healthy = healthy();
-}
-#endif
+#if AP_EFI_LOWEHEISER_ENABLED
+
+class AP_EFI_Loweheiser : public AP_EFI_Backend {
+public:
+
+    using AP_EFI_Backend::AP_EFI_Backend;
+
+    void update() override;
+
+    bool healthy() const override;
+
+};
+
+#endif // AP_EFI_LOWEHEISER_ENABLED
