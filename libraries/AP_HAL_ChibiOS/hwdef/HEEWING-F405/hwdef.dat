@@ -166,4 +166,8 @@ define AP_BATTMON_SMBUS_ENABLE 0
 include ../include/minimize_fpv_osd.inc
 include ../include/save_some_flash.inc
 
+# defines to transition minimize-fpv-osd boards to parachute-not-compiled-in:
+define HAL_PARACHUTE_ENABLED 0
+define AP_PARACHUTE_UNAVAILABLE_ENABLED 1
+
 AUTOBUILD_TARGETS Plane
