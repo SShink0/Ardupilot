@@ -2,6 +2,10 @@
 /// @brief  Parachute release library
 #pragma once
 
+#include "AP_Parachute_config.h"
+
+#if HAL_PARACHUTE_ENABLED
+
 #include <AP_Param/AP_Param.h>
 #include <AP_Common/AP_Common.h>
 
@@ -20,13 +24,6 @@
 #define AP_PARACHUTE_ALT_MIN_DEFAULT            10     // default min altitude the vehicle should have before parachute is released
 
 #define AP_PARACHUTE_CRITICAL_SINK_DEFAULT      0    // default critical sink speed in m/s to trigger emergency parachute
-
-#ifndef HAL_PARACHUTE_ENABLED
-// default to parachute enabled to match previous configs
-#define HAL_PARACHUTE_ENABLED 1
-#endif
-
-#if HAL_PARACHUTE_ENABLED
 
 /// @class  AP_Parachute
 /// @brief  Class managing the release of a parachute
@@ -118,6 +115,46 @@ private:
     };
 
     AP_Int32    _options;
+};
+
+namespace AP {
+    AP_Parachute *parachute();
+};
+
+#elif AP_PARACHUTE_UNAVAILABLE_ENABLED
+
+/*
+ * minimal class definition for a shim AP_Parachute. just enough to be
+ * able to interpret the "enabled" parameter.
+ */
+
+#include <AP_Param/AP_Param.h>
+class AP_Parachute {
+public:
+    /// Constructor
+    AP_Parachute()
+    {
+        _singleton = this;
+        AP_Param::setup_object_defaults(this, var_info);
+
+        AP_Param::setup_object_defaults(this, var_info);
+    }
+
+    /* Do not allow copies */
+    CLASS_NO_COPY(AP_Parachute);
+
+    AP_Int8     _enabled;       // 1 if parachute release is enabled
+
+    static const struct AP_Param::GroupInfo        var_info[];
+
+    /// returns true if parachute is enabled but compiled out of the code
+    bool mistakenly_enabled() const { return _enabled != 0; }
+
+    // get singleton instance
+    static AP_Parachute *get_singleton() { return _singleton; }
+
+private:
+    static AP_Parachute *_singleton;
 };
 
 namespace AP {
