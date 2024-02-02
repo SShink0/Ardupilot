@@ -634,7 +634,7 @@ private:
             FUNCTOR_BIND_MEMBER(&Plane::exit_mission_callback, void)};
 
 
-#if PARACHUTE == ENABLED
+#if PARACHUTE == ENABLED || AP_PARACHUTE_UNAVAILABLE_ENABLED
     AP_Parachute parachute;
 #endif
 
