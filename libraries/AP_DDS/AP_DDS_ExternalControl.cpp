@@ -64,10 +64,14 @@ bool AP_DDS_External_Control::handle_velocity_control(geometry_msgs_msg_TwistSta
             float(cmd_vel.twist.linear.y),
             float(-cmd_vel.twist.linear.z) };
         const float yaw_rate = -cmd_vel.twist.angular.z;
+        if (linear_velocity_base_link == Vector3f(NAN, NAN, NAN)) {
+            return external_control->set_yaw_rate(yaw_rate);
+        }
 
         auto &ahrs = AP::ahrs();
         linear_velocity = ahrs.body_to_earth(linear_velocity_base_link);
-        return external_control->set_linear_velocity_and_yaw_rate(linear_velocity, yaw_rate);
+
+        return external_control->set_linear_velocity_and_yaw_rate(linear_velocity, yaw_rate);       
     }
 
     else if (strcmp(cmd_vel.header.frame_id, MAP_FRAME) == 0) {
