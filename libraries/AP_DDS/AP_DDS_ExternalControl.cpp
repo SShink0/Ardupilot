@@ -55,6 +55,8 @@ bool AP_DDS_External_Control::handle_velocity_control(geometry_msgs_msg_TwistSta
     if (external_control == nullptr) {
         return false;
     }
+    
+    // TODO handle stale data from timestamp gracefully.
 
     if (strcmp(cmd_vel.header.frame_id, BASE_LINK_FRAME_ID) == 0) {
         // Convert commands from body frame (x-forward, y-left, z-up) to NED.
@@ -64,7 +66,8 @@ bool AP_DDS_External_Control::handle_velocity_control(geometry_msgs_msg_TwistSta
             float(cmd_vel.twist.linear.y),
             float(-cmd_vel.twist.linear.z) };
         const float yaw_rate = -cmd_vel.twist.angular.z;
-        if (linear_velocity_base_link == Vector3f(NAN, NAN, NAN)) {
+
+        if (linear_velocity_base_link.is_all_nan()) {
             return external_control->set_yaw_rate(yaw_rate);
         }
 
