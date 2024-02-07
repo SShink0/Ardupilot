@@ -181,12 +181,12 @@ public:
         uint8_t gnss_angle_pos_type;
         uint32_t gnss_heading_timestamp; // ms
         struct PACKED {
-            uint16_t gnss_gdop; // *10e3
-            uint16_t gnss_pdop; // *10e3
-            uint16_t gnss_hdop; // *10e3
-            uint16_t gnss_vdop; // *10e3
-            uint16_t gnss_tdop; // *10e3
-        } gnss_dop;
+            uint16_t gnss_gdop;
+            uint16_t gnss_pdop;
+            uint16_t gnss_hdop;
+            uint16_t gnss_vdop;
+            uint16_t gnss_tdop;
+        } gnss_dop; // *10e3
     };
 
     AP_ExternalAHRS::gps_data_message_t gps_data;

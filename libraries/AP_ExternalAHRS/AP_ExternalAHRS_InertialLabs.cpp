@@ -268,7 +268,7 @@ bool AP_ExternalAHRS_InertialLabs::check_uart()
         }
         case MessageType::ACCEL_DATA_HR: {
             CHECK_SIZE(u.accel_data_hr);
-            ins_data.accel = u.accel_data_hr.tofloat().rfu_to_frd()*9.8106f*1.0e-6;         
+            ins_data.accel = u.accel_data_hr.tofloat().rfu_to_frd()*9.8106f*1.0e-6;      
             break;
         }
         case MessageType::GYRO_DATA_HR: {
@@ -377,7 +377,7 @@ bool AP_ExternalAHRS_InertialLabs::check_uart()
         }
         case MessageType::DIFFERENTIAL_PRESSURE: {
             CHECK_SIZE(u.differential_pressure);
-            airspeed_data.differential_pressure = u.differential_pressure*1.0e-4*1.0e2; // 1.0e2: mbar to Pa
+            airspeed_data.differential_pressure = u.differential_pressure*1.0e-2; //  Pa
             break;
         }
         case MessageType::TRUE_AIRSPEED: {
@@ -430,11 +430,11 @@ bool AP_ExternalAHRS_InertialLabs::check_uart()
         }
         case MessageType::GNSS_DOP: {
             CHECK_SIZE(u.gnss_dop);
-            state2.gnss_gdop = u.gnss_dop.gnss_gdop * 1.0e-1; // in cm
-            state2.gnss_pdop = u.gnss_dop.gnss_pdop * 1.0e-1; // in cm
-            gps_data.hdop = u.gnss_dop.gnss_hdop * 1.0e-1; // in cm
-            gps_data.vdop = u.gnss_dop.gnss_vdop * 1.0e-1; // in cm
-            state2.gnss_tdop = u.gnss_dop.gnss_tdop * 1.0e-1; // in cm
+            state2.gnss_gdop = u.gnss_dop.gnss_gdop * 1.0e-1;
+            state2.gnss_pdop = u.gnss_dop.gnss_pdop * 1.0e-1;
+            gps_data.hdop = u.gnss_dop.gnss_hdop * 1.0e-1;
+            gps_data.vdop = u.gnss_dop.gnss_vdop * 1.0e-1;
+            state2.gnss_tdop = u.gnss_dop.gnss_tdop * 1.0e-1;
             break;
         }
         }
@@ -490,13 +490,17 @@ bool AP_ExternalAHRS_InertialLabs::check_uart()
             last_gps_ms = now_ms;
         }
     }
+#if AP_BARO_EXTERNALAHRS_ENABLED
     if (GOT_MSG(BARO_DATA) &&
         GOT_MSG(TEMPERATURE)) {
         AP::baro().handle_external(baro_data);
     }
+#endif
+#if AP_COMPASS_EXTERNALAHRS_ENABLED
     if (GOT_MSG(MAG_DATA)) {
         AP::compass().handle_external(mag_data);
     }
+#endif
 #if AP_AIRSPEED_EXTERNAL_ENABLED && (APM_BUILD_COPTER_OR_HELI || APM_BUILD_TYPE(APM_BUILD_ArduPlane))
     // only on plane and copter as others do not link AP_Airspeed
     if (GOT_MSG(DIFFERENTIAL_PRESSURE) &&
