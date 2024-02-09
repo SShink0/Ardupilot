@@ -140,6 +140,7 @@ BUILD_OPTIONS = [
     Feature('Copter', 'MODE_FLOWHOLD', 'MODE_FLOWHOLD_ENABLED', 'Enable Mode Flowhold', 0, "OPTICALFLOW"),
     Feature('Copter', 'MODE_FLIP', 'MODE_FLIP_ENABLED', 'Enable Mode Flip', 0, None),
     Feature('Copter', 'MODE_BRAKE', 'MODE_BRAKE_ENABLED', 'Enable Mode Brake', 0, None),
+    Feature('Copter', 'MODE_ALTHOLD', 'MODE_ALTHOLD_ENABLED', 'Enable Mode Althold', 0, None),
 
     Feature('Mission', 'AP_MISSION_NAV_PAYLOAD_PLACE_ENABLED', 'AP_MISSION_NAV_PAYLOAD_PLACE_ENABLED', 'Enable handling of NAV_PAYLOAD_PLACE mission items', 0, None),  # noqa
     Feature('Copter', 'AC_PAYLOAD_PLACE_ENABLED', 'AC_PAYLOAD_PLACE_ENABLED', 'Enable Payload Place flight behaviour', 0, 'AP_MISSION_NAV_PAYLOAD_PLACE_ENABLED'),  # noqa
