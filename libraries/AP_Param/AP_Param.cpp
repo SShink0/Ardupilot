@@ -1135,7 +1135,7 @@ void AP_Param::notify() const {
 /*
   Save the variable to HAL storage, synchronous version
 */
-void AP_Param::save_sync(bool force_save, bool send_to_gcs)
+void AP_Param::save_sync(bool force_save, bool send_to_gcs, bool unset)
 {
     uint32_t group_element = 0;
     const struct GroupInfo *ginfo;
@@ -1187,13 +1187,33 @@ void AP_Param::save_sync(bool force_save, bool send_to_gcs)
     uint16_t ofs;
     if (scan(&phdr, &ofs)) {
         // found an existing copy of the variable
-        eeprom_write_check(ap, ofs+sizeof(phdr), type_size((enum ap_var_type)phdr.type));
+        if (unset) {
+            // adjust the header
+            struct Param_header tmp = phdr;
+            set_key(tmp, _unset_key);
+            eeprom_write_check((uint8_t*)&tmp, ofs, sizeof(tmp));
+
+            // reset the in-memory value:
+            if (ginfo != nullptr) {
+                set_value((enum ap_var_type)phdr.type, this, get_default_value(this, *ginfo));
+            } else {
+                set_value((enum ap_var_type)phdr.type, this, get_default_value(this, *info));
+            }
+
+        } else {
+            // adjust the value
+            eeprom_write_check(ap, ofs+sizeof(phdr), type_size((enum ap_var_type)phdr.type));
+        }
         if (send_to_gcs) {
             send_parameter(name, (enum ap_var_type)phdr.type, idx);
         }
         return;
     }
     if (ofs == (uint16_t) ~0) {
+        return;
+    }
+    if (unset) {
+        // can't unset a variable we didn't find
         return;
     }
 
@@ -1245,9 +1265,18 @@ void AP_Param::save_sync(bool force_save, bool send_to_gcs)
 */
 void AP_Param::save(bool force_save)
 {
-    struct param_save p, p2;
-    p.param = this;
-    p.force_save = force_save;
+    const struct param_save p {
+        this,
+        true,  // force save
+        false  // don't unset
+    };
+
+    enqueue_param_save(p, force_save);
+}
+
+void AP_Param::enqueue_param_save(const struct param_save &p, bool force_save)
+{
+    struct param_save p2;
     if (save_queue.peek(p2) &&
         p2.param == this &&
         p2.force_save == force_save) {
@@ -1273,6 +1302,17 @@ void AP_Param::save(bool force_save)
     }
 }
 
+void AP_Param::unset()
+{
+    const struct param_save p {
+        this,
+        true,  // force-set
+        true  // unset
+    };
+
+    enqueue_param_save(p, true);
+}
+
 /*
   background function for saving parameters. This runs on the IO thread
  */
@@ -1280,7 +1320,7 @@ void AP_Param::save_io_handler(void)
 {
     struct param_save p;
     while (save_queue.pop(p)) {
-        p.param->save_sync(p.force_save, true);
+        p.param->save_sync(p.force_save, true, p.unset);
     }
     if (hal.scheduler->is_system_initialized()) {
         // pay the cost of parameter counting in the IO thread
@@ -1366,7 +1406,8 @@ bool AP_Param::load(void)
     return true;
 }
 
-bool AP_Param::configured_in_storage(void) const
+// returns the offset of the phdr for this variable in eeprom:
+bool AP_Param::find_offset_in_storage(uint16_t &ofs) const
 {
     uint32_t group_element = 0;
     const struct GroupInfo *ginfo;
@@ -1390,10 +1431,15 @@ bool AP_Param::configured_in_storage(void) const
     phdr.group_element = group_element;
 
     // scan EEPROM to find the right location
-    uint16_t ofs;
-
     // only vector3f can have non-zero idx for now
     return scan(&phdr, &ofs) && (phdr.type == AP_PARAM_VECTOR3F || idx == 0);
+}
+
+bool AP_Param::configured_in_storage(void) const
+{
+    uint16_t ofs;
+
+    return find_offset_in_storage(ofs);
 }
 
 bool AP_Param::configured_in_defaults_file(bool &read_only) const

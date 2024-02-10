@@ -3961,6 +3961,7 @@ void GCS_MAVLINK::handle_message(const mavlink_message_t &msg)
 
     case MAVLINK_MSG_ID_PARAM_REQUEST_LIST:
     case MAVLINK_MSG_ID_PARAM_SET:
+    case MAVLINK_MSG_ID_PARAM_UNSET:
     case MAVLINK_MSG_ID_PARAM_REQUEST_READ:
         handle_common_param_message(msg);
         break;
