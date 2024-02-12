@@ -5,6 +5,7 @@ import boards
 
 def configure(cfg):
     cfg.env.HAL_GCS_ENABLED = 0
+    cfg.env.AP_RC_CHANNEL_ENABLED = 0
 
 def build(bld):
     if isinstance(bld.get_board(), boards.chibios) and bld.env['WITH_FATFS'] != '1':
@@ -19,7 +20,6 @@ def build(bld):
         ap_libraries=bld.ap_common_vehicle_libraries() + [
             'AP_Beacon',
             'AP_Arming',
-            'AP_RCMapper',
             'AP_OSD',
             'AP_Avoidance',
         ],

@@ -42,7 +42,6 @@
 #include <Filter/Filter.h>             // Filter library
 #include <AP_Vehicle/AP_Vehicle.h>         // needed for AHRS build
 #include <AP_InertialNav/AP_InertialNav.h>     // inertial navigation library
-#include <AP_RCMapper/AP_RCMapper.h>        // RC input mapping library
 #include <AP_BattMonitor/AP_BattMonitor.h>     // Battery monitor library
 #include <AP_Arming/AP_Arming.h>
 #include <AP_Scripting/AP_Scripting.h>
@@ -169,8 +168,6 @@ private:
     Mode::Number control_mode;
     ModeReason control_mode_reason = ModeReason::UNKNOWN;
     Mode::Number prev_control_mode;
-
-    RCMapper rcmap;
 
     // inertial nav alt when we armed
     float arming_altitude_m;

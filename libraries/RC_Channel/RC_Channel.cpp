@@ -59,6 +59,7 @@ extern const AP_HAL::HAL& hal;
 #include <AP_VideoTX/AP_VideoTX.h>
 #include <AP_Torqeedo/AP_Torqeedo.h>
 #include <AP_Vehicle/AP_Vehicle_Type.h>
+
 #define SWITCH_DEBOUNCE_TIME_MS  200
 
 const AP_Param::GroupInfo RC_Channel::var_info[] = {
@@ -236,8 +237,10 @@ const AP_Param::GroupInfo RC_Channel::var_info[] = {
     // @Values{Copter, Rover, Plane, Blimp}: 174:Camera Image Tracking
     // @Values{Copter, Rover, Plane, Blimp}: 175:Camera Lens
     // @Values{Plane}: 176:Quadplane Fwd Throttle Override enable
-    // @Values{Rover}: 201:Roll
-    // @Values{Rover}: 202:Pitch
+    // @Values{Rover,Copter}: 201:Roll
+    // @Values{Rover,Copter}: 202:Pitch
+    // @Values{Copter}: 203:Throttle
+    // @Values{Copter}: 204:Yaw
     // @Values{Rover}: 207:MainSail
     // @Values{Rover, Plane}:  208:Flap
     // @Values{Plane}: 209:VTOL Forward Throttle
@@ -669,6 +672,10 @@ void RC_Channel::init_aux_function(const AUX_FUNC ch_option, const AuxSwitchPos 
 
     // not really aux functions:
     case AUX_FUNC::LOWEHEISER_THROTTLE:
+    case AUX_FUNC::ROLL:
+    case AUX_FUNC::PITCH:
+    case AUX_FUNC::YAW:
+    case AUX_FUNC::THROTTLE:
         break;
     case AUX_FUNC::AVOID_ADSB:
     case AUX_FUNC::AVOID_PROXIMITY:
@@ -1723,9 +1730,9 @@ RC_Channel::AuxSwitchPos RC_Channel::get_aux_switch_pos() const
 
 // return switch position value as LOW, MIDDLE, HIGH
 // if reading the switch fails then it returns LOW
-RC_Channel::AuxSwitchPos RC_Channels::get_channel_pos(const uint8_t rcmapchan) const
+RC_Channel::AuxSwitchPos RC_Channels::get_channel_pos(RC_Channel::AUX_FUNC func)
 {
-    const RC_Channel* chan = rc().channel(rcmapchan-1);
+    const RC_Channel* chan = find_channel_for_option(func);
     return chan != nullptr ? chan->get_aux_switch_pos() : RC_Channel::AuxSwitchPos::LOW;
 }
 
@@ -1785,6 +1792,67 @@ void RC_Channels::convert_options(const RC_Channel::AUX_FUNC old_option, const R
             c->option.set_and_save((int16_t)new_option);
         }
     }
+}
+
+
+// PARAMETER_CONVERSION - Added: Feb-2024 for ArduPilot 4.6
+void RC_Channels::convert_rcmap_parameters(uint32_t param_key)
+{
+    if (_conversion & 0b1) {
+        // conversion has already been done
+        return;
+    }
+    // mark conversion as having been done:
+    _conversion.set_and_save(_conversion | 0b1);
+
+    // for each of RCMap's parameters,
+    static const struct {
+        uint8_t idx;
+        RC_Channel::AUX_FUNC func;
+    } func_map[] {
+        { 0, RC_Channel::AUX_FUNC::ROLL },
+        { 1, RC_Channel::AUX_FUNC::PITCH },
+        { 2, RC_Channel::AUX_FUNC::THROTTLE },
+        { 3, RC_Channel::AUX_FUNC::YAW },
+        { 4, RC_Channel::AUX_FUNC::FWD_THR },
+        { 5, RC_Channel::AUX_FUNC::LATERAL_THR },
+   };
+    for (auto &map : func_map) {
+        struct AP_Param::ConversionInfo info;
+        info.old_key = param_key;
+        info.type = AP_PARAM_INT8;
+        info.new_name = nullptr;
+        info.old_group_element = map.idx;
+
+        uint8_t old_value;
+        AP_Param *ap = (AP_Param *)&old_value;
+
+        if (!AP_Param::find_old_parameter(&info, ap)) {
+            // the parameter wasn't set in the old eeprom
+            continue;
+        }
+
+        RC_Channel *c = channel(old_value-1);
+        if (c == nullptr) {
+            // old value was invalid
+            continue;
+        }
+
+        AP_Int16 &option = c->option;
+
+        if (!option.configured_in_storage() &&
+            RC_Channel::AUX_FUNC(option.get()) == map.func) {
+            // don't over-write default values
+            continue;
+        }
+
+        // force-overwrite the value:
+        option.set_and_save((uint16_t)map.func);
+    }
+
+    // we need to flush here to prevent a later set_default_by_name()
+    // causing a save to be done on a converted parameter
+    AP_Param::flush();
 }
 
 #endif  // AP_RC_CHANNEL_ENABLED

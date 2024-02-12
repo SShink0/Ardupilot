@@ -1176,7 +1176,7 @@ void AP_IOMCU::bind_dsm(uint8_t mode)
   setup for mixing. This allows fixed wing aircraft to fly in manual
   mode if the FMU dies
  */
-bool AP_IOMCU::setup_mixing(RCMapper *rcmap, int8_t override_chan,
+bool AP_IOMCU::setup_mixing(int8_t override_chan,
                             float mixing_gain, uint16_t manual_rc_mask)
 {
     if (!is_chibios_backend) {
@@ -1198,15 +1198,19 @@ bool AP_IOMCU::setup_mixing(RCMapper *rcmap, int8_t override_chan,
         MIX_UPDATE(mixing.servo_reversed[i], c->get_reversed());
     }
     // update RCMap
-    MIX_UPDATE(mixing.rc_channel[0], rcmap->roll());
-    MIX_UPDATE(mixing.rc_channel[1], rcmap->pitch());
-    MIX_UPDATE(mixing.rc_channel[2], rcmap->throttle());
-    MIX_UPDATE(mixing.rc_channel[3], rcmap->yaw());
-    for (uint8_t i=0; i<4; i++) {
-        const RC_Channel *c = RC_Channels::rc_channel(mixing.rc_channel[i]-1);
-        if (!c) {
+    static const RC_Channel::AUX_FUNC funcs[] {
+        RC_Channel::AUX_FUNC::ROLL,
+        RC_Channel::AUX_FUNC::PITCH,
+        RC_Channel::AUX_FUNC::YAW,
+        RC_Channel::AUX_FUNC::THROTTLE,
+    };
+    for (uint8_t i=0; i<ARRAY_SIZE(funcs); i++) {
+        const RC_Channel *c = rc().find_channel_for_option(funcs[i]);
+        if (c == nullptr) {
+            MIX_UPDATE(mixing.rc_channel[i], 0);
             continue;
         }
+        MIX_UPDATE(mixing.rc_channel[i], c->ch_num());
         MIX_UPDATE(mixing.rc_min[i], c->get_radio_min());
         MIX_UPDATE(mixing.rc_max[i], c->get_radio_max());
         MIX_UPDATE(mixing.rc_trim[i], c->get_radio_trim());

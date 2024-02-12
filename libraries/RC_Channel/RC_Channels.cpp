@@ -45,15 +45,24 @@ RC_Channels::RC_Channels(void)
         AP_HAL::panic("RC_Channels must be singleton");
     }
     _singleton = this;
+
 }
 
-void RC_Channels::init(void)
+void RC_Channels::set_control_channel_defaults()
 {
-    // setup ch_in on channels
+    // setup ch_in on channels.  Plane needs this initialisation early!
     for (uint8_t i=0; i<NUM_RC_CHANNELS; i++) {
         channel(i)->ch_in = i;
     }
 
+    channel(0)->set_default_option(RC_Channel::AUX_FUNC::ROLL);
+    channel(1)->set_default_option(RC_Channel::AUX_FUNC::PITCH);
+    channel(2)->set_default_option(RC_Channel::AUX_FUNC::THROTTLE);
+    channel(3)->set_default_option(RC_Channel::AUX_FUNC::YAW);
+}
+
+void RC_Channels::init(void)
+{
     init_aux_all();
 }
 

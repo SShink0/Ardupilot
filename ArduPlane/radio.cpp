@@ -8,16 +8,18 @@
  */
 void Plane::set_control_channels(void)
 {
+    auto &_rc = rc();
+
     if (g.rudder_only) {
         // in rudder only mode the roll and rudder channels are the
         // same.
-        channel_roll = RC_Channels::rc_channel(rcmap.yaw()-1);
+        channel_roll = _rc.find_channel_for_option(RC_Channel::AUX_FUNC::YAW);
     } else {
-        channel_roll = RC_Channels::rc_channel(rcmap.roll()-1);
+        channel_roll = _rc.find_channel_for_option(RC_Channel::AUX_FUNC::ROLL);
     }
-    channel_pitch    = RC_Channels::rc_channel(rcmap.pitch()-1);
-    channel_throttle = RC_Channels::rc_channel(rcmap.throttle()-1);
-    channel_rudder   = RC_Channels::rc_channel(rcmap.yaw()-1);
+    channel_pitch    = _rc.find_channel_for_option(RC_Channel::AUX_FUNC::PITCH);
+    channel_throttle = _rc.find_channel_for_option(RC_Channel::AUX_FUNC::THROTTLE);
+    channel_rudder   = _rc.find_channel_for_option(RC_Channel::AUX_FUNC::YAW);
 
     // set rc channel ranges
     channel_roll->set_angle(SERVO_MAX);

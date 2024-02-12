@@ -15,10 +15,12 @@ void Blimp::default_dead_zones()
 
 void Blimp::init_rc_in()
 {
-    channel_right = rc().channel(rcmap.roll()-1);
-    channel_front = rc().channel(rcmap.pitch()-1);
-    channel_up    = rc().channel(rcmap.throttle()-1);
-    channel_yaw   = rc().channel(rcmap.yaw()-1);
+    auto &_rc = rc();
+
+    channel_right = _rc.find_channel_for_option(RC_Channel::AUX_FUNC::ROLL);
+    channel_front = _rc.find_channel_for_option(RC_Channel::AUX_FUNC::PITCH);
+    channel_up = _rc.find_channel_for_option(RC_Channel::AUX_FUNC::THROTTLE);
+    channel_yaw = _rc.find_channel_for_option(RC_Channel::AUX_FUNC::YAW);
 
     // set rc channel ranges
     channel_right->set_angle(RC_SCALE);
