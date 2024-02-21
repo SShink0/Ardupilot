@@ -4,9 +4,102 @@
  *  Attitude Rate controllers and timing
  ****************************************************************/
 
-// update rate controllers and output to roll, pitch and yaw actuators
-//  called at 400hz by default
-void Copter::run_rate_controller()
+/*
+  thread for rate control
+*/
+void Copter::rate_controller_thread()
+{
+    HAL_BinarySemaphore rate_sem;
+    ins.set_rate_loop_sem(&rate_sem);
+
+    uint32_t last_run_us = AP_HAL::micros();
+    float dt_avg = 0.0;
+    uint32_t now_ms = AP_HAL::millis();
+    uint32_t last_report_ms = now_ms;
+    uint32_t last_notch_sample_ms = now_ms;
+    bool was_using_rate_thread = false;
+
+    while (true) {
+        // allow changing option at runtime
+        if (!flight_option_is_set(FlightOptions::USE_RATE_LOOP_THREAD) ||
+            ap.motor_test) {
+            using_rate_thread = false;
+            if (was_using_rate_thread) {
+                // if we were using the rate thread, we need to
+                // setup the notch filter sample rate
+                attitude_control->set_notch_sample_rate(AP::scheduler().get_filtered_loop_rate_hz());
+                was_using_rate_thread = false;
+            }
+            hal.scheduler->delay_microseconds(500);
+            last_run_us = AP_HAL::micros();
+            continue;
+        }
+
+        using_rate_thread = true;
+
+        // wait for an IMU sample
+        rate_sem.wait_blocking();
+        if (ap.motor_test) {
+            continue;
+        }
+
+        const uint32_t now_us = AP_HAL::micros();
+        const uint32_t dt_us = now_us - last_run_us;
+        const float dt = dt_us * 1.0e-6;
+        last_run_us = now_us;
+
+        if (is_zero(dt_avg)) {
+            dt_avg = dt;
+        } else {
+            dt_avg = 0.99f * dt_avg + 0.01f * dt;
+        }
+
+        /*
+          run the rate controller. We pass in the long term average dt
+          not the per loop dt, as most of the timing jitter is from
+          the timing of the FIFO reads on the SPI bus, which does not
+          reflect the actual time between IMU samples, which is steady
+        */
+        attitude_control->rate_controller_run_dt(dt_avg);
+
+        /*
+          immediately output the new motor values
+         */
+        motors_output();
+
+        /*
+          update the center frequencies of notch filters
+         */
+        update_dynamic_notch_at_specified_rate();
+
+#if CONFIG_HAL_BOARD != HAL_BOARD_SITL
+        // ensure we give at least some CPU to other threads
+        // don't sleep on SITL where small sleeps are not possible
+        hal.scheduler->delay_microseconds(100);
+#endif
+
+        now_ms = AP_HAL::millis();
+
+        if (now_ms - last_notch_sample_ms >= 1000 || !was_using_rate_thread) {
+            // update the PID notch sample rate at 1Hz if if we are
+            // enabled at runtime
+            last_notch_sample_ms = now_ms;
+            attitude_control->set_notch_sample_rate(1.0 / dt_avg);
+        }
+        
+        if (now_ms - last_report_ms >= 200) {
+            last_report_ms = now_ms;
+            gcs().send_named_float("LRATE", 1.0/dt_avg);
+        }
+
+        was_using_rate_thread = true;
+    }
+}
+
+/*
+  update rate controller when run from main thread (normal operation)
+*/
+void Copter::run_rate_controller_main()
 {
     // set attitude and position controller loop time
     const float last_loop_time_s = AP::scheduler().get_last_loop_time_s();
@@ -14,8 +107,10 @@ void Copter::run_rate_controller()
     attitude_control->set_dt(last_loop_time_s);
     pos_control->set_dt(last_loop_time_s);
 
-    // run low level rate controllers that only require IMU data
-    attitude_control->rate_controller_run(); 
+    if (!using_rate_thread) {
+        // only run the rate controller if we are not using the rate thread
+        attitude_control->rate_controller_run();
+    }
 }
 
 /*************************************************************

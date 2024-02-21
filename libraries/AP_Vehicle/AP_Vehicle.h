@@ -490,8 +490,8 @@ private:
     // update the harmonic notch
     void update_dynamic_notch(AP_InertialSensor::HarmonicNotch &notch);
 
-    // run notch update at either loop rate or 200Hz
-    void update_dynamic_notch_at_specified_rate();
+    // scheduler task
+    void update_dynamic_notches(void);
 #endif
 
     // decimation for 1Hz update
@@ -521,6 +521,14 @@ private:
 
     // Bitmask of modes to disable from gcs
     AP_Int32 flight_mode_GCS_block;
+
+protected:
+    /*
+      run notch update at either loop rate or 200Hz. Called by
+      AP_Vehicle scheduler if using_rate_thread is not true
+    */
+    void update_dynamic_notch_at_specified_rate();
+    bool using_rate_thread;
 };
 
 namespace AP {
