@@ -68,6 +68,7 @@ const AP_Param::GroupInfo AP_CANManager::var_info[] = {
     AP_SUBGROUPINFO(_interfaces[2], "P3_", 3, AP_CANManager, AP_CANManager::CANIface_Params),
 #endif
 
+#if AP_CANDRIVER_ENABLED
 #if HAL_MAX_CAN_PROTOCOL_DRIVERS > 0
     // @Group: D1_
     // @Path: ../AP_CANManager/AP_CANDriver.cpp
@@ -84,6 +85,7 @@ const AP_Param::GroupInfo AP_CANManager::var_info[] = {
     // @Group: D3_
     // @Path: ../AP_CANManager/AP_CANDriver.cpp
     AP_SUBGROUPINFO(_drv_param[2], "D3_", 6, AP_CANManager, AP_CANManager::CANDriver_Params),
+#endif
 #endif
 
 #if AP_CAN_SLCAN_ENABLED

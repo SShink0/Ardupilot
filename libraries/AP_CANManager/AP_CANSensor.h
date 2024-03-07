@@ -18,13 +18,15 @@
  
 #pragma once
 
+#include "AP_CANManager_config.h"
+
+#if AP_CANSENSOR_ENABLED
+
 #include "AP_CAN.h"
 #include "AP_CANDriver.h"
 #ifndef HAL_BUILD_AP_PERIPH
 #include "AP_CANManager.h"
 #endif
-
-#if HAL_MAX_CAN_PROTOCOL_DRIVERS
 
 class CANSensor : public AP_CANDriver {
 public:
@@ -126,5 +128,4 @@ private:
     static MultiCANLinkedList* callbacks;
 };
 
-#endif // HAL_MAX_CAN_PROTOCOL_DRIVERS
-
+#endif  // AP_CANSENSOR_ENABLED

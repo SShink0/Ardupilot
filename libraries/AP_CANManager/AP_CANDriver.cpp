@@ -13,16 +13,18 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <AP_HAL/AP_HAL.h>
+#include "AP_CANManager_config.h"
 
-#if HAL_MAX_CAN_PROTOCOL_DRIVERS && HAL_CANMANAGER_ENABLED
+#if AP_CANDRIVER_ENABLED
+
+#if HAL_CANMANAGER_ENABLED
+
 #include "AP_CANManager.h"
 #include <AP_Vehicle/AP_Vehicle_Type.h>
 
 #include <AP_DroneCAN/AP_DroneCAN.h>
 #include <AP_PiccoloCAN/AP_PiccoloCAN.h>
 #include <AP_KDECAN/AP_KDECAN.h>
-
 
 // table of user settable CAN bus parameters
 const AP_Param::GroupInfo AP_CANManager::CANDriver_Params::var_info[] = {
@@ -61,4 +63,6 @@ const AP_Param::GroupInfo AP_CANManager::CANDriver_Params::var_info[] = {
     
     AP_GROUPEND
 };
-#endif
+#endif  // HAL_CANMANAGER_ENABLED
+
+#endif  // AP_CANDRIVER_ENABLED

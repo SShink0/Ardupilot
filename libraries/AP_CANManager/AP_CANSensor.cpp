@@ -15,9 +15,11 @@
 /*
   generic CAN sensor class, for easy creation of CAN sensors using proprietary protocols
  */
-#include <AP_HAL/AP_HAL.h>
+#include "AP_CANManager_config.h"
 
-#if HAL_MAX_CAN_PROTOCOL_DRIVERS
+#if AP_CANSENSOR_ENABLED
+
+#include <AP_HAL/AP_HAL.h>
 
 #include <AP_Scheduler/AP_Scheduler.h>
 #include "AP_CANSensor.h"
@@ -243,5 +245,4 @@ void MultiCAN::MultiCANLinkedList::handle_frame(AP_HAL::CANFrame &frame)
     }
 }
 
-#endif // HAL_MAX_CAN_PROTOCOL_DRIVERS
-
+#endif // AP_CANSENSOR_ENABLED
