@@ -27,6 +27,7 @@
 extern AP_IOMCU iomcu;
 #endif
 #include <AP_Scripting/AP_Scripting.h>
+#include <AP_BoardConfig/AP_BoardConfig.h>
 
 #define SCHED_TASK(func, rate_hz, max_time_micros, prio) SCHED_TASK_CLASS(AP_Vehicle, &vehicle, func, rate_hz, max_time_micros, prio)
 
@@ -392,7 +393,9 @@ void AP_Vehicle::setup()
     stats.init();
 #endif
 
+#if AP_BOARDCONFIG_ENABLED
     BoardConfig.init();
+#endif
 
 #if HAL_CANMANAGER_ENABLED
     can_mgr.init();
