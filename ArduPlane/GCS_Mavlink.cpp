@@ -1369,18 +1369,28 @@ void GCS_MAVLINK_Plane::handle_set_position_target_global_int(const mavlink_mess
 
         mavlink_set_position_target_global_int_t pos_target;
         mavlink_msg_set_position_target_global_int_decode(&msg, &pos_target);
+
+        const uint16_t POSITION_TARGET_TYPEMASK_LAST_BYTE = 0xF000;
+
         // Unexpectedly, the mask is expecting "ones" for dimensions that should
         // be IGNORNED rather than INCLUDED.  See mavlink documentation of the
         // SET_POSITION_TARGET_GLOBAL_INT message, type_mask field.
-        const uint16_t alt_mask = 0b1111111111111011; // (z mask at bit 3)
+        const uint16_t alt_mask = (
+            POSITION_TARGET_TYPEMASK_X_IGNORE | POSITION_TARGET_TYPEMASK_Y_IGNORE | POSITION_TARGET_TYPEMASK_Z_IGNORE |
+            POSITION_TARGET_TYPEMASK_VX_IGNORE | POSITION_TARGET_TYPEMASK_VY_IGNORE | POSITION_TARGET_TYPEMASK_VZ_IGNORE |
+            POSITION_TARGET_TYPEMASK_AX_IGNORE | POSITION_TARGET_TYPEMASK_AY_IGNORE | POSITION_TARGET_TYPEMASK_AZ_IGNORE |
+            POSITION_TARGET_TYPEMASK_YAW_IGNORE | POSITION_TARGET_TYPEMASK_YAW_RATE_IGNORE |
+            POSITION_TARGET_TYPEMASK_LAST_BYTE) ^ 0xFFFF;
 
-        // bit mask for path following: ignore force_set, yaw, yaw_rate
-        const uint16_t path_mask = 0b1111111000000000;
+        // bit mask for path following
+        const uint16_t path_mask = (
+            POSITION_TARGET_TYPEMASK_YAW_IGNORE | POSITION_TARGET_TYPEMASK_YAW_RATE_IGNORE |
+            POSITION_TARGET_TYPEMASK_LAST_BYTE) ^ 0xFFFF;
 
         bool msg_valid = true;
         AP_Mission::Mission_Command cmd = {0};
 
-        if (pos_target.type_mask & alt_mask)
+        if (((pos_target.type_mask | POSITION_TARGET_TYPEMASK_LAST_BYTE) ^ 0xFFFF) == alt_mask)
         {
             cmd.content.location.alt = pos_target.alt * 100;
             cmd.content.location.relative_alt = false;
@@ -1411,7 +1421,7 @@ void GCS_MAVLINK_Plane::handle_set_position_target_global_int(const mavlink_mess
         } // end if alt_mask
 
         // guided path following
-        if (pos_target.type_mask & path_mask) {
+        if (((pos_target.type_mask | POSITION_TARGET_TYPEMASK_LAST_BYTE) ^ 0xFFFF) == path_mask) {
             cmd.content.location.lat = pos_target.lat_int;
             cmd.content.location.lng = pos_target.lon_int;
 
