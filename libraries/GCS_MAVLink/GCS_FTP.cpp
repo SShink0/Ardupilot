@@ -129,6 +129,17 @@ bool GCS_MAVLINK::send_ftp_reply(const pending_ftp &reply)
     return true;
 }
 
+bool GCS_MAVLINK::ftp_check_name_len(const struct pending_ftp &request) {
+    const size_t file_name_len = strnlen((char *)request.data, sizeof(request.data));
+    if (request.size == 0) {
+        return false;
+    }
+    if (file_name_len == request.size) {
+        return true;
+    }
+    return (request.size - file_name_len == 1) && (request.data[sizeof(request.data) - 1] == 0);
+}
+
 void GCS_MAVLINK::ftp_error(struct pending_ftp &response, FTP_ERROR error) {
     response.opcode = FTP_OP::Nack;
     response.data[0] = static_cast<uint8_t>(error);
@@ -254,10 +265,7 @@ void GCS_MAVLINK::ftp_worker(void) {
                         }
 
                         // sanity check that our the request looks well formed
-                        const size_t file_name_len = strnlen((char *)request.data, sizeof(request.data));
-                        const bool is_req_size_consider_tnull = ((request.size - file_name_len == 1) &&
-                                                                 request.data[sizeof(request.data) - 1] == 0);
-                        if (((file_name_len != request.size) && !is_req_size_consider_tnull) || (request.size == 0)) {
+                        if (!ftp_check_name_len(request)) {
                             ftp_error(reply, FTP_ERROR::InvalidDataSize);
                             break;
                         }
@@ -342,10 +350,7 @@ void GCS_MAVLINK::ftp_worker(void) {
                         }
 
                         // sanity check that our the request looks well formed
-                        const size_t file_name_len = strnlen((char *)request.data, sizeof(request.data));
-                        const bool is_req_size_consider_tnull = ((request.size - file_name_len == 1) &&
-                                                                 request.data[sizeof(request.data) - 1] == 0);
-                        if (((file_name_len != request.size) && !is_req_size_consider_tnull) || (request.size == 0)) {
+                        if (!ftp_check_name_len(request)) {
                             ftp_error(reply, FTP_ERROR::InvalidDataSize);
                             break;
                         }
@@ -399,10 +404,7 @@ void GCS_MAVLINK::ftp_worker(void) {
                 case FTP_OP::CreateDirectory:
                     {
                         // sanity check that our the request looks well formed
-                        const size_t file_name_len = strnlen((char *)request.data, sizeof(request.data));
-                        const bool is_req_size_consider_tnull = ((request.size - file_name_len == 1) &&
-                                                                 request.data[sizeof(request.data) - 1] == 0);
-                        if (((file_name_len != request.size) && !is_req_size_consider_tnull) || (request.size == 0)) {
+                        if (!ftp_check_name_len(request)) {
                             ftp_error(reply, FTP_ERROR::InvalidDataSize);
                             break;
                         }
@@ -422,10 +424,7 @@ void GCS_MAVLINK::ftp_worker(void) {
                 case FTP_OP::RemoveFile:
                     {
                         // sanity check that our the request looks well formed
-                        const size_t file_name_len = strnlen((char *)request.data, sizeof(request.data));
-                        const bool is_req_size_consider_tnull = ((request.size - file_name_len == 1) &&
-                                                                 request.data[sizeof(request.data) - 1] == 0);
-                        if (((file_name_len != request.size) && !is_req_size_consider_tnull) || (request.size == 0)) {
+                        if (!ftp_check_name_len(request)) {
                             ftp_error(reply, FTP_ERROR::InvalidDataSize);
                             break;
                         }
@@ -444,10 +443,7 @@ void GCS_MAVLINK::ftp_worker(void) {
                 case FTP_OP::CalcFileCRC32:
                     {
                         // sanity check that our the request looks well formed
-                        const size_t file_name_len = strnlen((char *)request.data, sizeof(request.data));
-                        const bool is_req_size_consider_tnull = ((request.size - file_name_len == 1) &&
-                                                                 request.data[sizeof(request.data) - 1] == 0);
-                        if (((file_name_len != request.size) && !is_req_size_consider_tnull) || (request.size == 0)) {
+                        if (!ftp_check_name_len(request)) {
                             ftp_error(reply, FTP_ERROR::InvalidDataSize);
                             break;
                         }
@@ -627,11 +623,8 @@ int GCS_MAVLINK::gen_dir_entry(char *dest, size_t space, const char *path, const
 void GCS_MAVLINK::ftp_list_dir(struct pending_ftp &request, struct pending_ftp &response) {
     response.offset = request.offset; // this should be set for any failure condition for debugging
 
-    const size_t directory_name_size = strnlen((char *)request.data, sizeof(request.data));
-    const bool is_req_size_consider_tnull = ((request.size - directory_name_size == 1) &&
-                                             request.data[sizeof(request.data) - 1] == 0);
     // sanity check that our the request looks well formed
-    if (((directory_name_size != request.size) && !is_req_size_consider_tnull) || (request.size == 0)) {
+    if (!ftp_check_name_len(request)) {
         ftp_error(response, FTP_ERROR::InvalidDataSize);
         return;
     }
