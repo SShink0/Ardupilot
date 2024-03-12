@@ -156,7 +156,7 @@ public:
     virtual bool set_speed_up(float speed_xy_cms) {return false;}
     virtual bool set_speed_down(float speed_xy_cms) {return false;}
 
-    int32_t get_alt_above_ground_cm(void);
+    int32_t get_alt_above_ground_cm(bool use_psc_case=true);
 
     // pilot input processing
     void get_pilot_desired_lean_angles(float &roll_out_cd, float &pitch_out_cd, float angle_max_cd, float angle_limit_cd) const;
@@ -1940,39 +1940,29 @@ private:
     uint32_t _bail_time_start_ms;   // Time at start of bail out
     float _target_climb_rate_adjust;// Target vertical acceleration used during bail out phase
     float _target_pitch_adjust;     // Target pitch rate used during bail out phase
+    uint32_t _touchdown_time_ms;
+    bool _hover_autorotation;       // bool to determine if we should enter the hover autorotation or not
 
     enum class Autorotation_Phase {
         ENTRY,
+        HOVER_ENTRY,
         SS_GLIDE,
         FLARE,
         TOUCH_DOWN,
         BAIL_OUT } phase_switch;
-        
-    enum class Navigation_Decision {
-        USER_CONTROL_STABILISED,
-        STRAIGHT_AHEAD,
-        INTO_WIND,
-        NEAREST_RALLY} nav_pos_switch;
 
     // --- Internal flags ---
     struct controller_flags {
-            bool entry_initial             : 1;
-            bool ss_glide_initial          : 1;
-            bool flare_initial             : 1;
-            bool touch_down_initial        : 1;
-            bool straight_ahead_initial    : 1;
-            bool level_initial             : 1;
-            bool break_initial             : 1;
-            bool bail_out_initial          : 1;
-            bool bad_rpm                   : 1;
+            bool entry_init             : 1;
+            bool hover_entry_init       : 1;
+            bool ss_glide_init          : 1;
+            bool flare_init             : 1;
+            bool touch_down_init        : 1;
+            bool bail_out_init          : 1;
+            bool bad_rpm                : 1;
     } _flags;
 
-    struct message_flags {
-            bool bad_rpm                   : 1;
-    } _msg_flags;
-
-    //--- Internal functions ---
-    void warning_message(uint8_t message_n);    //Handles output messages to the terminal
+    uint32_t _last_bad_rpm_ms;
 
 };
 #endif

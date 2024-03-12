@@ -598,3 +598,16 @@ AP_MotorsHeli_RSC::RotorControlState AP_MotorsHeli::get_rotor_control_state() co
     // Should be unreachable, but needed to keep the compiler happy
     return AP_MotorsHeli_RSC::RotorControlState::STOP;
 }
+
+// Return collective hover position as an angle in deg
+float AP_MotorsHeli::get_hover_coll_ang(void)
+{
+    return _collective_min_deg.get() + (_collective_max_deg.get() - _collective_min_deg.get()) * _collective_hover.get();
+}
+
+// Helper function to calculate the normalised collective position given a desired blade pitch angle (deg)
+float AP_MotorsHeli::calc_coll_from_ang(float col_ang_deg)
+{
+    float col_norm = col_ang_deg / MAX((_collective_max_deg.get() - _collective_min_deg.get()), 1.0);
+    return constrain_float(col_norm, 0.0, 1.0);
+}

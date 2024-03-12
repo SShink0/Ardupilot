@@ -87,6 +87,7 @@ public:
     // functions for autothrottle, throttle curve, governor, idle speed, output to servo
     void        set_governor_output(float governor_output) {_governor_output = governor_output; }
     float       get_governor_output() const { return _governor_output; }
+    float       get_governor_setpoint() const { return _governor_rpm; }
     void        governor_reset();
     float       get_control_output() const { return _control_output; }
     void        set_idle_output(float idle_output) { _idle_output.set(idle_output); }
@@ -129,7 +130,7 @@ public:
     uint32_t    get_output_mask() const;
 
     // rotor_speed_above_critical - return true if rotor speed is above that critical for flight
-    bool        rotor_speed_above_critical(void) const { return get_rotor_speed() > get_critical_speed(); }
+    bool        rotor_speed_above_critical(void) const { return get_rotor_speed() >= get_critical_speed(); }
 
     // var_info for holding Parameter information
     static const struct AP_Param::GroupInfo var_info[];
