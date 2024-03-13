@@ -139,4 +139,8 @@ define STM32_PWM_USE_ADVANCED TRUE
 # save some flash
 include ../include/minimize_fpv_osd.inc
 
+# defines to transition minimize-fpv-osd boards to parachute-not-compiled-in:
+define HAL_PARACHUTE_ENABLED 0
+define AP_PARACHUTE_UNAVAILABLE_ENABLED 1
+
 define DEFAULT_NTF_LED_TYPES 257

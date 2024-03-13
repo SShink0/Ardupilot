@@ -528,7 +528,7 @@ private:
 #endif
 
     // Parachute release
-#if PARACHUTE == ENABLED
+#if PARACHUTE == ENABLED || AP_PARACHUTE_UNAVAILABLE_ENABLED
     AP_Parachute parachute;
 #endif
 
