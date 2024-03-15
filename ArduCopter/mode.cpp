@@ -502,6 +502,9 @@ Vector2f Mode::get_pilot_desired_velocity(float vel_max) const
     if (copter.failsafe.radio || !rc().has_ever_seen_rc_input()) {
         return vel;
     }
+    if (!rc().has_valid_input()) {
+        return vel;
+    }
     // fetch roll and pitch inputs
     float roll_out = channel_roll->get_control_in();
     float pitch_out = channel_pitch->get_control_in();
