@@ -673,6 +673,8 @@ def generate_tasklist(ctx, do_print=True):
                     task['targets'] = ['AP_Periph']
             elif 'iofirmware' in board:
                 task['targets'] = ['iofirmware', 'bootloader']
+            elif 'GenericVehicle' in board:
+                task['targets'] = ['genericvehicle']
             else:
                 if 'sitl' in board or 'SITL' in board:
                     task['targets'] = ['antennatracker', 'copter', 'heli', 'plane', 'rover', 'sub', 'replay']
