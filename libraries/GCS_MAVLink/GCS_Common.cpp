@@ -3946,7 +3946,7 @@ void GCS_MAVLINK::handle_adsb_message(const mavlink_message_t &msg)
 }
 #endif
 
-#if OSD_PARAM_ENABLED
+#if OSD_ENABLED && OSD_PARAM_ENABLED
 void GCS_MAVLINK::handle_osd_param_config(const mavlink_message_t &msg) const
 {
     AP_OSD *osd = AP::osd();
@@ -4233,7 +4233,7 @@ void GCS_MAVLINK::handle_message(const mavlink_message_t &msg)
         break;
 #endif
 
-#if OSD_PARAM_ENABLED
+#if OSD_ENABLED && OSD_PARAM_ENABLED
     case MAVLINK_MSG_ID_OSD_PARAM_CONFIG:
     case MAVLINK_MSG_ID_OSD_PARAM_SHOW_CONFIG:
         handle_osd_param_config(msg);
