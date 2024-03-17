@@ -5,12 +5,20 @@
 
 #include <stdint.h>
 #include <stdarg.h>
+#include <deque>
+#include <vector>
 #include "AP_HAL_SITL_Namespace.h"
 #include <AP_HAL/utility/Socket_native.h>
 #include <AP_HAL/utility/RingBuffer.h>
 #include <AP_CSVReader/AP_CSVReader.h>
 
 #include <SITL/SIM_SerialDevice.h>
+
+// Timestamped packets to push into a double-ended queue to simulate latency
+struct TimestampedData {
+    uint64_t timestamp_us;
+    std::vector<uint8_t> data;
+};
 
 class HALSITL::UARTDriver : public AP_HAL::UARTDriver {
 public:
@@ -114,6 +122,10 @@ private:
     HAL_Semaphore write_mtx;
 
     SITL::SerialDevice *_sim_serial_device;
+
+    // Double-ended queues to simulate latency
+    std::deque<TimestampedData> latencyQueueWrite;
+    std::deque<TimestampedData> latencyQueueRead;
 
     struct {
         bool active;
