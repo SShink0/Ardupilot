@@ -17,6 +17,10 @@
 
 #pragma once
 
+#include "AP_CANManager_config.h"
+
+#if AP_CANDRIVER_ENABLED
+
 #include <AP_Common/AP_Common.h>
 #include <AP_HAL/AP_HAL.h>
 
@@ -42,3 +46,5 @@ public:
     // handler for outgoing frames for auxillary drivers
     virtual bool write_aux_frame(AP_HAL::CANFrame &out_frame, const uint64_t timeout_us) { return false; }
 };
+
+#endif  // AP_CANDRIVER_ENABLED

@@ -673,6 +673,8 @@ def generate_tasklist(ctx, do_print=True):
                     task['targets'] = ['AP_Periph']
             elif 'iofirmware' in board:
                 task['targets'] = ['iofirmware', 'bootloader']
+            elif 'GenericVehicle' in board:
+                task['targets'] = ['genericvehicle']
             else:
                 if 'sitl' in board or 'SITL' in board:
                     task['targets'] = ['antennatracker', 'copter', 'heli', 'plane', 'rover', 'sub', 'replay']
@@ -901,7 +903,7 @@ ardupilotwaf.build_command('check-all',
     doc='shortcut for `waf check --alltests`',
 )
 
-for name in ('antennatracker', 'copter', 'heli', 'plane', 'rover', 'sub', 'blimp', 'bootloader','iofirmware','AP_Periph','replay'):
+for name in ('antennatracker', 'copter', 'heli', 'plane', 'rover', 'sub', 'blimp', 'bootloader','iofirmware','AP_Periph','replay', 'genericvehicle'):
     ardupilotwaf.build_command(name,
         program_group_list=name,
         doc='builds %s programs' % name,

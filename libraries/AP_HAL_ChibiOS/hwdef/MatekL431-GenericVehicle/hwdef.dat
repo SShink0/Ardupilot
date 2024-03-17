@@ -1,0 +1,11 @@
+# hw definition file for processing by chibios_pins.py
+
+define HAL_USE_ADC FALSE
+define STM32_ADC_USE_ADC1 FALSE
+define HAL_DISABLE_ADC_DRIVER TRUE
+
+define CHIBIOS_SHORT_BOARD_NAME "MatekL431-GV"
+
+include ../MatekL431/hwdef.inc
+
+include ../include/genericvehicle.inc

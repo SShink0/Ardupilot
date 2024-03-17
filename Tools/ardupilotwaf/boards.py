@@ -897,6 +897,57 @@ class sitl_periph(sitl):
             pass
         env.CXXFLAGS += ['-DHAL_NAVEKF2_AVAILABLE=0']
 
+class sitl_genericvehicle(sitl):
+    def configure_env(self, cfg, env):
+        super(sitl_genericvehicle, self).configure_env(cfg, env)
+        env.DEFINES.update(
+            AP_AHRS_ENABLED = 1,
+            AP_AHRS_BACKEND_DEFAULT_ENABLED = 0,
+            AP_AHRS_DCM_ENABLED = 1,  # need a default backend
+            HAL_EXTERNAL_AHRS_ENABLED = 0,
+
+            HAL_MAVLINK_BINDINGS_ENABLED = 1,
+
+            AP_AIRSPEED_AUTOCAL_ENABLE = 0,
+            AP_CAN_SLCAN_ENABLED = 0,
+            AP_ICENGINE_ENABLED = 0,
+            AP_MISSION_ENABLED = 0,
+            AP_RCPROTOCOL_ENABLED = 0,
+            AP_RTC_ENABLED = 0,
+            AP_SCHEDULER_ENABLED = 1,
+            AP_SCRIPTING_ENABLED = 0,
+            AP_STATS_ENABLED = 0,
+            AP_UART_MONITOR_ENABLED = 1,
+            COMPASS_CAL_ENABLED = 0,
+            COMPASS_LEARN_ENABLED = 0,
+            COMPASS_MOT_ENABLED = 0,
+            HAL_CAN_DEFAULT_NODE_ID = 0,
+            HAL_CANMANAGER_ENABLED = 0,
+            HAL_GCS_ENABLED = 1,
+            HAL_GENERATOR_ENABLED = 0,
+            HAL_LOGGING_ENABLED = 0,
+            HAL_LOGGING_MAVLINK_ENABLED = 0,
+            HAL_PROXIMITY_ENABLED = 0,
+            HAL_RALLY_ENABLED = 0,
+            HAL_SUPPORT_RCOUT_SERIAL = 0,
+            AP_TERRAIN_AVAILABLE = 0,
+            AP_CUSTOMROTATIONS_ENABLED = 0,
+
+            HAL_MAX_CAN_PROTOCOL_DRIVERS = 0,
+            AP_FRSKY_TELEM_ENABLED = 0,
+            HAL_PICCOLO_CAN_ENABLE = 0,
+            AP_OPENDRONEID_ENABLED = 0,
+            OSD_ENABLED = 0,
+            OSD_SCREEN_ENABLED = 0,
+            HAL_HOTT_TELEM_ENABLED = 0,
+            AP_ARMING_ENABLED = 0,
+            HAL_RUNCAM_ENABLED = 0,
+            AP_RCMAPPER_ENABLED = 0,
+            AP_SRV_CHANNELS_ENABLED = 0,
+            AP_ADVANCEDFAILSAFE_ENABLED = 0,
+            AP_BEACON_ENABLED = 0,
+        )
+
 class sitl_periph_universal(sitl_periph):
     def configure_env(self, cfg, env):
         super(sitl_periph_universal, self).configure_env(cfg, env)

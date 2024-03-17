@@ -1,0 +1,11 @@
+include ../Pixhawk6X/hwdef.dat
+
+include ../include/genericvehicle.inc
+
+define CHIBIOS_SHORT_BOARD_NAME "Pixhawk6X-GV"
+
+undef HAL_WITH_IO_MCU
+define HAL_WITH_IO_MCU 0
+
+undef HAL_WITH_IO_MCU_BIDIR_DSHOT
+define HAL_WITH_IO_MCU_BIDIR_DSHOT 0

@@ -1856,7 +1856,7 @@ INCLUDE common.ld
             if 'io_firmware.bin' not in self.romfs:
                 self.error("Need io_firmware.bin in ROMFS for IOMCU")
 
-            f.write('#define HAL_WITH_IO_MCU 1\n')
+            self.write_defaulting_define(f, 'HAL_WITH_IO_MCU', 1)
             f.write('#define HAL_UART_IOMCU_IDX %u\n' % len(serial_list))
             f.write(
                 '#define HAL_UART_IO_DRIVER ChibiOS::UARTDriver uart_io(HAL_UART_IOMCU_IDX)\n'
@@ -2525,6 +2525,11 @@ Please run: Tools/scripts/build_bootloaders.py %s
         if not self.is_periph_fw():
             self.romfs["hwdef.dat"] = hwdat
 
+    def write_defaulting_define(self, f, name, value):
+        f.write(f"#ifndef {name}\n")
+        f.write(f"#define {name} {value}\n")
+        f.write("#endif\n")
+
     def write_define(self, f, name, value):
         f.write(f"#define {name} {value}\n")
 
@@ -3065,6 +3070,15 @@ Please run: Tools/scripts/build_bootloaders.py %s
             if name == 'AP_PERIPH' and value != "1":
                 raise ValueError("AP_PERIPH may only have value 1")
             self.env_vars[name] = value
+        elif a[0] == 'unenv':  # remove variable from environment
+            self.progress("Removing environment %s" % ' '.join(a[1:]))
+            if len(a[1:]) < 1:
+                self.error("Bad unenv line for %s" % a[0])
+            name = a[1]
+            try:
+                del self.env_vars[name]
+            except KeyError:
+                pass
         elif a[0] == 'define':
             # extract numerical defines for processing by other parts of the script
             result = re.match(r'define\s*([A-Z_]+)\s*([0-9]+)', line)
