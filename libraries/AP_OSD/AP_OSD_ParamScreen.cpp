@@ -26,7 +26,6 @@
 #include <AP_HAL/Util.h>
 #include <limits.h>
 #include <ctype.h>
-#include <AP_RCMapper/AP_RCMapper.h>
 #include <AP_Vehicle/AP_Vehicle_Type.h>
 #include <AP_Arming/AP_Arming.h>
 #include <AP_Vehicle/AP_Vehicle_Type.h>
@@ -392,9 +391,9 @@ void AP_OSD_ParamScreen::modify_configured_parameter(uint8_t number, Event ev)
 // return radio values as LOW, MIDDLE, HIGH
 // this function uses different threshold values to RC_Chanel::get_channel_pos()
 // to avoid glitching on the stick travel
-RC_Channel::AuxSwitchPos AP_OSD_ParamScreen::get_channel_pos(uint8_t rcmapchan) const
+RC_Channel::AuxSwitchPos AP_OSD_ParamScreen::get_channel_pos(RC_Channel::AUX_FUNC func) const
 {
-    const RC_Channel* chan = rc().channel(rcmapchan-1);
+    const RC_Channel* chan = rc().find_channel_for_option(func);
     if (chan == nullptr) {
         return RC_Channel::AuxSwitchPos::LOW;
     }
@@ -419,10 +418,10 @@ RC_Channel::AuxSwitchPos AP_OSD_ParamScreen::get_channel_pos(uint8_t rcmapchan) 
 // map rc input to an event
 AP_OSD_ParamScreen::Event AP_OSD_ParamScreen::map_rc_input_to_event() const
 {
-    const RC_Channel::AuxSwitchPos throttle = get_channel_pos(AP::rcmap()->throttle());
-    const RC_Channel::AuxSwitchPos yaw = get_channel_pos(AP::rcmap()->yaw());
-    const RC_Channel::AuxSwitchPos roll = get_channel_pos(AP::rcmap()->roll());
-    const RC_Channel::AuxSwitchPos pitch = get_channel_pos(AP::rcmap()->pitch());
+    const RC_Channel::AuxSwitchPos throttle = get_channel_pos(RC_Channel::AUX_FUNC::THROTTLE);
+    const RC_Channel::AuxSwitchPos yaw = get_channel_pos(RC_Channel::AUX_FUNC::YAW);
+    const RC_Channel::AuxSwitchPos roll = get_channel_pos(RC_Channel::AUX_FUNC::ROLL);
+    const RC_Channel::AuxSwitchPos pitch = get_channel_pos(RC_Channel::AUX_FUNC::PITCH);
 
     Event result = Event::NONE;
 

@@ -40,7 +40,6 @@
 #include <AP_Scripting/AP_Scripting.h>
 #include <AP_Camera/AP_RunCam.h>
 #include <AP_GyroFFT/AP_GyroFFT.h>
-#include <AP_RCMapper/AP_RCMapper.h>
 #include <AP_VisualOdom/AP_VisualOdom.h>
 #include <AP_Parachute/AP_Parachute.h>
 #include <AP_OSD/AP_OSD.h>
@@ -707,19 +706,25 @@ bool AP_Arming::rc_arm_checks(AP_Arming::Method method)
         check_failed(ARMING_CHECK_PARAMETERS, true, "Mode channel and RC%d_OPTION conflict", rc().flight_mode_channel_number());
         check_passed = false;
     }
-    const RCMapper * rcmap = AP::rcmap();
-    if (rcmap != nullptr) {
-        if (!rc().option_is_enabled(RC_Channels::Option::ARMING_SKIP_CHECK_RPY)) {
-            const char *names[3] = {"Roll", "Pitch", "Yaw"};
-            const uint8_t channels[3] = {rcmap->roll(), rcmap->pitch(), rcmap->yaw()};
-            for (uint8_t i = 0; i < ARRAY_SIZE(channels); i++) {
-                const RC_Channel *c = rc().channel(channels[i] - 1);
+    if (true) {
+        auto &_rc = rc();
+        if (!_rc.option_is_enabled(RC_Channels::Option::ARMING_SKIP_CHECK_RPY)) {
+            struct {
+                const char *name;
+                RC_Channel *channel;
+            } channels_to_check[] {
+                { "Roll", _rc.find_channel_for_option(RC_Channel::AUX_FUNC::ROLL) },
+                { "Pitch", _rc.find_channel_for_option(RC_Channel::AUX_FUNC::PITCH) },
+                { "Yaw", _rc.find_channel_for_option(RC_Channel::AUX_FUNC::YAW) },
+            };
+            for (const auto &to_check : channels_to_check) {
+                const auto *c = to_check.channel;
                 if (c == nullptr) {
                     continue;
                 }
                 if (c->get_control_in() != 0) {
-                    if ((method != Method::RUDDER) || (c != rc().get_arming_channel())) { // ignore the yaw input channel if rudder arming
-                        check_failed(ARMING_CHECK_RC, true, "%s (RC%d) is not neutral", names[i], channels[i]);
+                    if ((method != Method::RUDDER) || (c != _rc.get_arming_channel())) { // ignore the yaw input channel if rudder arming
+                        check_failed(ARMING_CHECK_RC, true, "%s (RC%d) is not neutral", to_check.name, to_check.channel->ch_num());
                         check_passed = false;
                     }
                 }
@@ -728,10 +733,10 @@ bool AP_Arming::rc_arm_checks(AP_Arming::Method method)
 
         // if throttle check is enabled, require zero input
         if (rc().arming_check_throttle()) {
-            RC_Channel *c = rc().channel(rcmap->throttle() - 1);
+            RC_Channel *c = _rc.find_channel_for_option(RC_Channel::AUX_FUNC::THROTTLE);
             if (c != nullptr) {
                 if (c->get_control_in() != 0) {
-                    check_failed(ARMING_CHECK_RC, true, "Throttle (RC%d) is not neutral", rcmap->throttle());
+                    check_failed(ARMING_CHECK_RC, true, "Throttle (RC%d) is not neutral", c->ch_num());
                     check_passed = false;
                 }
             }

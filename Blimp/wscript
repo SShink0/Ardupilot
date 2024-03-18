@@ -9,7 +9,6 @@ def build(bld):
         ap_libraries=bld.ap_common_vehicle_libraries() + [
             'AC_InputManager',
             'AP_InertialNav',
-            'AP_RCMapper',
             'AP_Avoidance',
             'AP_Arming',
             'AP_LTM_Telem',
