@@ -401,13 +401,13 @@ bool GCS_MAVLINK_Rover::try_send_message(enum ap_message id)
     return true;
 }
 
-void GCS_MAVLINK_Rover::packetReceived(const mavlink_status_t &status, const mavlink_message_t &msg)
+void GCS_MAVLINK_Rover::packetReceived(uint8_t framing_status, const mavlink_status_t &status, const mavlink_message_t &msg)
 {
 #if AP_FOLLOW_ENABLED
     // pass message to follow library
     rover.g2.follow.handle_msg(msg);
 #endif
-    GCS_MAVLINK::packetReceived(status, msg);
+    GCS_MAVLINK::packetReceived(framing_status, status, msg);
 }
 
 /*

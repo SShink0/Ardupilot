@@ -329,12 +329,13 @@ const struct GCS_MAVLINK::stream_entries GCS_MAVLINK::all_stream_entries[] = {
   We eavesdrop on MAVLINK_MSG_ID_GLOBAL_POSITION_INT and
   MAVLINK_MSG_ID_SCALED_PRESSUREs
 */
-void GCS_MAVLINK_Tracker::packetReceived(const mavlink_status_t &status,
+void GCS_MAVLINK_Tracker::packetReceived(uint8_t framing_status,
+                                         const mavlink_status_t &status,
                                          const mavlink_message_t &msg)
 {
     // return immediately if sysid doesn't match our target sysid
     if ((tracker.g.sysid_target != 0) && (tracker.g.sysid_target != msg.sysid)) {
-        GCS_MAVLINK::packetReceived(status, msg);
+        GCS_MAVLINK::packetReceived(framing_status, status, msg);
         return;
     }
 
@@ -363,7 +364,7 @@ void GCS_MAVLINK_Tracker::packetReceived(const mavlink_status_t &status,
         break;
     }
     }
-    GCS_MAVLINK::packetReceived(status, msg);
+    GCS_MAVLINK::packetReceived(framing_status, status, msg);
 }
 
 // locks onto a particular target sysid and sets it's position data stream to at least 1hz

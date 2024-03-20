@@ -409,12 +409,6 @@ const struct GCS_MAVLINK::stream_entries GCS_MAVLINK::all_stream_entries[] = {
     MAV_STREAM_TERMINATOR // must have this at end of stream_entries
 };
 
-void GCS_MAVLINK_Blimp::packetReceived(const mavlink_status_t &status,
-                                       const mavlink_message_t &msg)
-{
-    GCS_MAVLINK::packetReceived(status, msg);
-}
-
 bool GCS_MAVLINK_Blimp::params_ready() const
 {
     if (AP_BoardConfig::in_config_error()) {
