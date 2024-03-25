@@ -833,6 +833,19 @@ bool AP_Mount::set_lens(uint8_t instance, uint8_t lens)
     return backend->set_lens(lens);
 }
 
+#if HAL_MOUNT_SET_CAMERA_SOURCE_ENABLED
+// set_camera_source is functionally the same as set_lens except primary and secondary lenses are specified by type
+// primary and secondary sources use the AP_Camera::CameraSource enum cast to uint8_t
+bool AP_Mount::set_camera_source(uint8_t instance, uint8_t primary_source, uint8_t secondary_source)
+{
+    auto *backend = get_instance(instance);
+    if (backend == nullptr) {
+        return false;
+    }
+    return backend->set_camera_source(primary_source, secondary_source);
+}
+#endif
+
 // send camera information message to GCS
 void AP_Mount::send_camera_information(uint8_t instance, mavlink_channel_t chan) const
 {
@@ -871,6 +884,16 @@ bool AP_Mount::get_rangefinder_distance(uint8_t instance, float& distance_m) con
         return false;
     }
     return backend->get_rangefinder_distance(distance_m);
+}
+
+// enable/disable rangefinder.  Returns true on success
+bool AP_Mount::set_rangefinder_enable(uint8_t instance, bool enable)
+{
+    auto *backend = get_instance(instance);
+    if (backend == nullptr) {
+        return false;
+    }
+    return backend->set_rangefinder_enable(enable);
 }
 
 AP_Mount_Backend *AP_Mount::get_primary() const
