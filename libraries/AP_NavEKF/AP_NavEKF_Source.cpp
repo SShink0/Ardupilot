@@ -135,7 +135,7 @@ const AP_Param::GroupInfo AP_NavEKF_Source::var_info[] = {
     // @Param: _OPTIONS
     // @DisplayName: EKF Source Options
     // @Description: EKF Source Options
-    // @Bitmask: 0:FuseAllVelocities
+    // @Bitmask: 0:FuseAllVelocities, 1:AlignPosWhenUsingOptFlow
     // @User: Advanced
     AP_GROUPINFO("_OPTIONS", 16, AP_NavEKF_Source, _options, (int16_t)SourceOptions::FUSE_ALL_VELOCITIES),
 
@@ -260,7 +260,8 @@ void AP_NavEKF_Source::align_inactive_sources()
     // consider aligning XY position:
     bool align_posxy = false;
     if ((getPosXYSource() == SourceXY::GPS) ||
-        (getPosXYSource() == SourceXY::BEACON)) {
+        (getPosXYSource() == SourceXY::BEACON) ||
+        ((getVelXYSource() == SourceXY::OPTFLOW) && option_is_set(SourceOptions::ALIGN_WHEN_USING_OPTFLOW))) {
         // only align position if active source is GPS or Beacon
         for (uint8_t i=0; i<AP_NAKEKF_SOURCE_SET_MAX; i++) {
             if (_source_set[i].posxy == SourceXY::EXTNAV) {
