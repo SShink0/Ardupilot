@@ -1077,6 +1077,16 @@ const AP_Param::GroupInfo AP_OSD_Screen::var_info2[] = {
     // @User: Standard
     AP_GROUPINFO("FONT", 4, AP_OSD_Screen, font_index, 0),
 #endif
+
+#if HAL_WITH_MSP_DISPLAYPORT
+    // @Param: TXT_SCALE
+    // @DisplayName: Scales OSD element positions based on the the overlay text resolution (MSP DisplayPort only)
+    // @Description: Scales OSD element positions based on the the overlay text resolution (MSP DisplayPort only)
+    // @Values: 0:Disable,1:Enabled
+    // @User: Standard
+    AP_GROUPINFO("TXT_SCALE", 5, AP_OSD_Screen, txt_scale, 0),
+#endif
+
     AP_GROUPEND
 };
 
@@ -1313,6 +1323,26 @@ float AP_OSD_AbstractScreen::u_scale(enum unit_type unit, float value)
     return value * scale[units][unit] + (offsets[units]?offsets[units][unit]:0);
 }
 
+uint8_t  AP_OSD_AbstractScreen::scale_x(uint8_t x) const
+{
+#if HAL_WITH_MSP_DISPLAYPORT
+    if (get_txt_scale() && get_txt_resolution() == SCALE_50x18) {
+        return x*50/30;
+    }
+#endif
+    return x;
+}
+
+uint8_t  AP_OSD_AbstractScreen::scale_y(uint8_t x) const
+{
+#if HAL_WITH_MSP_DISPLAYPORT
+    if (get_txt_scale() && get_txt_resolution() == SCALE_50x18) {
+        return x*18/16;
+    }
+#endif
+    return x;
+}
+
 char AP_OSD_Screen::get_arrow_font_index(int32_t angle_cd)
 {
     uint32_t interval = 36000 / SYMBOL(SYM_ARROW_COUNT);
@@ -1525,6 +1555,7 @@ void AP_OSD_Screen::draw_message(uint8_t x, uint8_t y)
             }
 
             int16_t start_position = 0;
+            const uint8_t message_visible_width = MIN(get_msg_visible_width(), int(sizeof(buffer)-1));
             //scroll if required
             //scroll pattern: wait, scroll to the left, wait, scroll to the right
             if (len > message_visible_width) {
@@ -2280,7 +2311,7 @@ void AP_OSD_Screen::draw_rngf(uint8_t x, uint8_t y)
     }
 }
 
-#define DRAW_SETTING(n) if (n.enabled) draw_ ## n(n.xpos, n.ypos)
+#define DRAW_SETTING(n) if (n.enabled) draw_ ## n(scale_x(n.xpos), scale_y(n.ypos))
 
 #if HAL_WITH_OSD_BITMAP || HAL_WITH_MSP_DISPLAYPORT
 void AP_OSD_Screen::draw(void)
