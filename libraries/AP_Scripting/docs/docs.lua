@@ -2015,6 +2015,9 @@ function baro:get_altitude() end
 ---@return boolean
 function baro:healthy(instance) end
 
+-- get altitude difference from a base pressure and current pressure
+---@return number
+function baro:get_altitude_difference(base_pressure,pressure) end
 
 -- desc
 ---@class serial
@@ -3072,6 +3075,10 @@ function arming:get_aux_auth_id() end
 -- desc
 ---@return boolean
 function arming:arm() end
+
+-- force arm
+---@return boolean
+function arming:arm_force() end
 
 -- desc
 ---@return boolean
