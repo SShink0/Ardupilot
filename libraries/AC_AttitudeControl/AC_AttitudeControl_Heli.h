@@ -93,7 +93,7 @@ public:
     void set_inverted_flight(bool inverted) override { _inverted_flight = inverted;}
 
     // accessor for inverted flight flag
-    bool get_inverted_flight() override { return _inverted_flight;}
+    bool get_inverted_flight() override { return _inverted_flight; }
 
     // set the PID notch sample rates
     void set_notch_sample_rate(float sample_rate) override;
