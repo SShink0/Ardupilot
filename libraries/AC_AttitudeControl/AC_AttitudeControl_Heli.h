@@ -90,7 +90,7 @@ public:
     void input_thrust_vector_heading(const Vector3f& thrust_vector, float heading_angle_cd, float heading_rate_cds) override;
 
     // enable/disable inverted flight
-    void set_inverted_flight(bool inverted) override { _inverted_flight = inverted;}
+    void set_inverted_flight(bool inverted) override { _inverted_flight = inverted; }
 
     // accessor for inverted flight flag
     bool get_inverted_flight() override { return _inverted_flight; }
