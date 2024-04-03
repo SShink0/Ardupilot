@@ -15,6 +15,7 @@ import pickle
 import struct
 import base64
 import subprocess
+import pathlib
 
 _dynamic_env_data = {}
 def _load_dynamic_env_data(bld):
@@ -601,12 +602,8 @@ def configure(cfg):
         cfg.msg('Default parameters', cfg.options.default_parameters, color='YELLOW')
         env.DEFAULT_PARAMETERS = cfg.options.default_parameters
 
-    try:
-        ret = generate_hwdef_h(env)
-    except Exception:
+    if not generate_hwdef_h(env):
         cfg.fatal("Failed to process hwdef.dat")
-    if ret != 0:
-        cfg.fatal("Failed to process hwdef.dat ret=%d" % ret)
     load_env_vars(cfg.env)
     if env.HAL_NUM_CAN_IFACES and not env.AP_PERIPH:
         setup_canmgr_build(cfg)
@@ -645,7 +642,28 @@ def generate_hwdef_h(env):
         cmd += " '{0}'".format(env.HWDEF_EXTRA)
     if env.BOOTLOADER_OPTION:
         cmd += " " + env.BOOTLOADER_OPTION
-    return subprocess.call(cmd, shell=True)
+    try:
+        ret = subprocess.call(cmd, shell=True)
+    except Exception as e:
+        return False
+
+    if ret != 0:
+        return False
+
+    # force any redefines the user wants to make with command-line --redefine:
+    # this splitting code is the same as that for cfg.options.define
+    if env.REDEFINE is not None:
+        hwdef_h = os.path.join(env.BUILDROOT, 'hwdef.h')
+        more_text = "\n"
+        more_text = "// redefines from command-line:\n"
+        for (n, v) in [d.split("=") for d in env.REDEFINE]:
+            # cfg.msg("Redefining: %s" % (n, ), v)
+            more_text += f'#undef {n}\n'
+            more_text += f'#define {n} {v}\n'
+        p = pathlib.Path(hwdef_h)
+        p.write_text(p.read_text() + more_text)
+
+    return True
 
 def pre_build(bld):
     '''pre-build hook to change dynamic sources'''
@@ -655,12 +673,8 @@ def pre_build(bld):
     hwdef_h = os.path.join(bld.env.BUILDROOT, 'hwdef.h')
     if not os.path.exists(hwdef_h):
         print("Generating hwdef.h")
-        try:
-            ret = generate_hwdef_h(bld.env)
-        except Exception:
+        if not generate_hwdef_h(bld.env):
             bld.fatal("Failed to process hwdef.dat")
-        if ret != 0:
-            bld.fatal("Failed to process hwdef.dat ret=%d" % ret)
     setup_optimization(bld.env)
 
 def build(bld):
