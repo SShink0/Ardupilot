@@ -156,10 +156,6 @@ private:
         DRB     = 2,
     };
 
-    // Feedforward test used to determine Rate FF gain
-    void rate_ff_test_init();
-    void rate_ff_test_run(float max_angle_cds, float target_rate_cds, float dir_sign);
-
     // initialize dwell test or angle dwell test variables
     void dwell_test_init(float start_frq, float stop_frq, float filt_freq, DwellType dwell_type);
 
@@ -243,6 +239,7 @@ private:
     sweep_info curr_test;
     sweep_info curr_test_mtr;
     sweep_info curr_test_tgt;
+    sweep_info test[20];
 
     Vector3f start_angles;                          // aircraft attitude at the start of test
     uint32_t settle_time;                           // time in ms for allowing aircraft to stabilize before initiating test
@@ -281,6 +278,8 @@ private:
     // fix the frequency sweep time to 23 seconds
     const float sweep_time_ms = 23000;
 
+    // number of cycles to complete before running frequency response calculations
+    float pre_calc_cycles;
 
     // parameters
     AP_Int8  axis_bitmask;        // axes to be tuned
@@ -295,6 +294,10 @@ private:
     // freqresp object for the frequency response tests
     AC_AutoTune_FreqResp freqresp_mtr; // frequency response of output to motor mixer input
     AC_AutoTune_FreqResp freqresp_tgt; // frequency response of output to target input
+
+    // allow tracking of cycles complete for frequency response object
+    bool cycle_complete_tgt;
+    bool cycle_complete_mtr;
 
     Chirp chirp_input;
 };
