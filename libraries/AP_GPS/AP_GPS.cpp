@@ -214,7 +214,7 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
 
     // 19 was GPS_DELAY_MS2
 
-#if defined(GPS_BLENDED_INSTANCE)
+#if AP_GPS_BLENDED_ENABLED
     // @Param: _BLEND_MASK
     // @DisplayName: Multi GPS Blending Mask
     // @Description: Determines which of the accuracy measures Horizontal position, Vertical Position and Speed are used to calculate the weighting on each GPS receiver when soft switching has been selected by setting GPS_AUTO_SWITCH to 2(Blend)
@@ -400,7 +400,7 @@ void AP_GPS::convert_parameters()
 // GPS solution is treated as an additional sensor.
 uint8_t AP_GPS::num_sensors(void) const
 {
-#if defined(GPS_BLENDED_INSTANCE)
+#if AP_GPS_BLENDED_ENABLED
     if (_output_is_blended) {
         return num_instances+1;
     }
@@ -1072,7 +1072,7 @@ void AP_GPS::update(void)
 #if GPS_MAX_RECEIVERS > 1
 void AP_GPS::update_primary(void)
 {
-#if defined(GPS_BLENDED_INSTANCE)
+#if AP_GPS_BLENDED_ENABLED
     /*
       if blending is requested, attempt to calculate weighting for
       each GPS
@@ -1105,7 +1105,7 @@ void AP_GPS::update_primary(void)
         primary_instance = GPS_BLENDED_INSTANCE;
         return;
     }
-#endif // defined (GPS_BLENDED_INSTANCE)
+#endif //   AP_GPS_BLENDED_ENABLED
 
     // check the primary param is set to possible GPS
     int8_t primary_param = _primary.get();
@@ -1145,7 +1145,7 @@ void AP_GPS::update_primary(void)
         }
     }
 
-#if defined(GPS_BLENDED_INSTANCE)
+#if AP_GPS_BLENDED_ENABLED
     // handling switching away from blended GPS
     if (primary_instance == GPS_BLENDED_INSTANCE) {
         primary_instance = 0;
@@ -1180,7 +1180,7 @@ void AP_GPS::update_primary(void)
         _last_instance_swap_ms = now;
         return;
     }
-#endif  // defined(GPS_BLENDED_INSTANCE)
+#endif  // AP_GPS_BLENDED_ENABLED
 
     // Use primary if 3D fix or better
     if (((GPSAutoSwitch)_auto_switch.get() == GPSAutoSwitch::USE_PRIMARY_IF_3D_FIX) && (state[primary_param].status >= GPS_OK_FIX_3D)) {
@@ -1690,7 +1690,7 @@ bool AP_GPS::get_lag(uint8_t instance, float &lag_sec) const
         return false;
     }
 
-#if defined(GPS_BLENDED_INSTANCE)
+#if AP_GPS_BLENDED_ENABLED
     // return lag of blended GPS
     if (instance == GPS_BLENDED_INSTANCE) {
         lag_sec = _blended_lag_sec;
@@ -1727,7 +1727,7 @@ const Vector3f &AP_GPS::get_antenna_offset(uint8_t instance) const
         return params[0].antenna_offset;
     }
 
-#if defined(GPS_BLENDED_INSTANCE)
+#if AP_GPS_BLENDED_ENABLED
     if (instance == GPS_BLENDED_INSTANCE) {
         // return an offset for the blended GPS solution
         return _blended_antenna_offset;
@@ -1786,7 +1786,7 @@ bool AP_GPS::is_healthy(uint8_t instance) const
     }
 #endif // HAL_BUILD_AP_PERIPH
 
-#if defined(GPS_BLENDED_INSTANCE)
+#if AP_GPS_BLENDED_ENABLED
     if (instance == GPS_BLENDED_INSTANCE) {
         return blend_health_check();
     }
@@ -1986,6 +1986,155 @@ bool AP_GPS::gps_yaw_deg(uint8_t instance, float &yaw_deg, float &accuracy_deg, 
     }
     return true;
 }
+
+/*
+ * Old parameter metadata.  Until we have versioned parameters, keeping
+ * old parameters around for a while can help with an adjustment
+ * period.
+ */
+
+    // @Param: _TYPE
+    // @DisplayName: 1st GPS type
+    // @Description: GPS type of 1st GPS
+    // @Values: 0:None,1:AUTO,2:uBlox,5:NMEA,6:SiRF,7:HIL,8:SwiftNav,9:DroneCAN,10:SBF,11:GSOF,13:ERB,14:MAV,15:NOVA,16:HemisphereNMEA,17:uBlox-MovingBaseline-Base,18:uBlox-MovingBaseline-Rover,19:MSP,20:AllyStar,21:ExternalAHRS,22:DroneCAN-MovingBaseline-Base,23:DroneCAN-MovingBaseline-Rover,24:UnicoreNMEA,25:UnicoreMovingBaselineNMEA,26:SBF-DualAntenna
+    // @RebootRequired: True
+    // @User: Advanced
+
+    // @Param: _TYPE2
+    // @CopyFieldsFrom: GPS_TYPE
+    // @DisplayName: 2nd GPS type
+    // @Description: GPS type of 2nd GPS
+
+    // @Param: _GNSS_MODE
+    // @DisplayName: GNSS system configuration
+    // @Description: Bitmask for what GNSS system to use on the first GPS (all unchecked or zero to leave GPS as configured)
+    // @Bitmask: 0:GPS,1:SBAS,2:Galileo,3:Beidou,4:IMES,5:QZSS,6:GLONASS
+    // @User: Advanced
+
+    // @Param: _GNSS_MODE2
+    // @DisplayName: GNSS system configuration
+    // @Description: Bitmask for what GNSS system to use on the second GPS (all unchecked or zero to leave GPS as configured)
+    // @Bitmask: 0:GPS,1:SBAS,2:Galileo,3:Beidou,4:IMES,5:QZSS,6:GLONASS
+    // @User: Advanced
+
+    // @Param: _RATE_MS
+    // @DisplayName: GPS update rate in milliseconds
+    // @Description: Controls how often the GPS should provide a position update. Lowering below 5Hz(default) is not allowed. Raising the rate above 5Hz usually provides little benefit and for some GPS (eg Ublox M9N) can severely impact performance.
+    // @Units: ms
+    // @Values: 100:10Hz,125:8Hz,200:5Hz
+    // @Range: 50 200
+    // @User: Advanced
+
+    // @Param: _RATE_MS2
+    // @DisplayName: GPS 2 update rate in milliseconds
+    // @Description: Controls how often the GPS should provide a position update. Lowering below 5Hz(default) is not allowed. Raising the rate above 5Hz usually provides little benefit and for some GPS (eg Ublox M9N) can severely impact performance.
+    // @Units: ms
+    // @Values: 100:10Hz,125:8Hz,200:5Hz
+    // @Range: 50 200
+    // @User: Advanced
+
+    // @Param: _POS1_X
+    // @DisplayName: Antenna X position offset
+    // @Description: X position of the first GPS antenna in body frame. Positive X is forward of the origin. Use antenna phase centroid location if provided by the manufacturer.
+    // @Units: m
+    // @Range: -5 5
+    // @Increment: 0.01
+    // @User: Advanced
+
+    // @Param: _POS1_Y
+    // @DisplayName: Antenna Y position offset
+    // @Description: Y position of the first GPS antenna in body frame. Positive Y is to the right of the origin. Use antenna phase centroid location if provided by the manufacturer.
+    // @Units: m
+    // @Range: -5 5
+    // @Increment: 0.01
+    // @User: Advanced
+
+    // @Param: _POS1_Z
+    // @DisplayName: Antenna Z position offset
+    // @Description: Z position of the first GPS antenna in body frame. Positive Z is down from the origin. Use antenna phase centroid location if provided by the manufacturer.
+    // @Units: m
+    // @Range: -5 5
+    // @Increment: 0.01
+    // @User: Advanced
+
+    // @Param: _POS2_X
+    // @DisplayName: Antenna X position offset
+    // @Description: X position of the second GPS antenna in body frame. Positive X is forward of the origin. Use antenna phase centroid location if provided by the manufacturer.
+    // @Units: m
+    // @Range: -5 5
+    // @Increment: 0.01
+    // @User: Advanced
+
+    // @Param: _POS2_Y
+    // @DisplayName: Antenna Y position offset
+    // @Description: Y position of the second GPS antenna in body frame. Positive Y is to the right of the origin. Use antenna phase centroid location if provided by the manufacturer.
+    // @Units: m
+    // @Range: -5 5
+    // @Increment: 0.01
+    // @User: Advanced
+
+    // @Param: _POS2_Z
+    // @DisplayName: Antenna Z position offset
+    // @Description: Z position of the second GPS antenna in body frame. Positive Z is down from the origin. Use antenna phase centroid location if provided by the manufacturer.
+    // @Units: m
+    // @Range: -5 5
+    // @Increment: 0.01
+    // @User: Advanced
+
+    // @Param: _DELAY_MS
+    // @DisplayName: GPS delay in milliseconds
+    // @Description: Controls the amount of GPS  measurement delay that the autopilot compensates for. Set to zero to use the default delay for the detected GPS type.
+    // @Units: ms
+    // @Range: 0 250
+    // @User: Advanced
+    // @RebootRequired: True
+
+    // @Param: _DELAY_MS2
+    // @DisplayName: GPS 2 delay in milliseconds
+    // @Description: Controls the amount of GPS  measurement delay that the autopilot compensates for. Set to zero to use the default delay for the detected GPS type.
+    // @Units: ms
+    // @Range: 0 250
+    // @User: Advanced
+    // @RebootRequired: True
+
+    // @Param: _COM_PORT
+    // @DisplayName: GPS physical COM port
+    // @Description: The physical COM port on the connected device, currently only applies to SBF and GSOF GPS
+    // @Range: 0 10
+    // @Increment: 1
+    // @User: Advanced
+    // @Values: 0:COM1(RS232) on GSOF, 1:COM2(TTL) on GSOF
+    // @RebootRequired: True
+
+    // @Param: _COM_PORT2
+    // @DisplayName: GPS physical COM port
+    // @Description: The physical COM port on the connected device, currently only applies to SBF and GSOF GPS
+    // @Range: 0 10
+    // @Increment: 1
+    // @User: Advanced
+    // @RebootRequired: True
+
+    // @Group: _MB1_
+    // @Path: MovingBase.cpp
+
+    // @Group: _MB2_
+    // @Path: MovingBase.cpp
+
+    // @Param: _CAN_NODEID1
+    // @DisplayName: GPS Node ID 1
+    // @Description: GPS Node id for first-discovered GPS.
+    // @ReadOnly: True
+    // @User: Advanced
+
+    // @Param: _CAN_NODEID2
+    // @DisplayName: GPS Node ID 2
+    // @Description: GPS Node id for second-discovered GPS.
+    // @ReadOnly: True
+    // @User: Advanced
+
+/*
+ * end old parameter metadata
+ */
 
 namespace AP {
 

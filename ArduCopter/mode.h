@@ -197,6 +197,9 @@ protected:
     void zero_throttle_and_hold_attitude();
     void make_safe_ground_handling(bool force_throttle_unlimited = false);
 
+    // Return stopping point as a location with above origin alt frame
+    Location get_stopping_point() const;
+
     // functions to control normal landing.  pause_descent is true if vehicle should not descend
     void land_run_horizontal_control();
     void land_run_vertical_control(bool pause_descent = false);
@@ -338,7 +341,9 @@ public:
         // rate_cds(): desired yaw rate in centidegrees/second:
         float rate_cds();
 
+        // returns a yaw in degrees, direction of vehicle travel:
         float look_ahead_yaw();
+
         float roi_yaw() const;
 
         // auto flight mode's yaw mode

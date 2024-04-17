@@ -25,6 +25,7 @@ import vehicle_test_suite
 from vehicle_test_suite import NotAchievedException, AutoTestTimeoutException, PreconditionFailedException
 from vehicle_test_suite import Test
 from vehicle_test_suite import MAV_POS_TARGET_TYPE_MASK
+from vehicle_test_suite import WaitAndMaintainArmed
 
 from pymavlink.rotmat import Vector3
 
@@ -2053,6 +2054,67 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
         self.progress("CIRCLE OK for %u seconds" % holdtime)
 
         self.do_RTL()
+
+    def CompassMot(self):
+        '''test code that adjust mag field for motor interference'''
+        self.run_cmd(
+            mavutil.mavlink.MAV_CMD_PREFLIGHT_CALIBRATION,
+            0,  # p1
+            0,  # p2
+            0,  # p3
+            0,  # p4
+            0,  # p5
+            1,  # p6
+            0  # p7
+        )
+        self.context_collect("STATUSTEXT")
+        self.wait_statustext("Starting calibration", check_context=True)
+        self.wait_statustext("Current", check_context=True)
+        rc3_min = self.get_parameter('RC3_MIN')
+        rc3_max = self.get_parameter('RC3_MAX')
+        rc3_dz = self.get_parameter('RC3_DZ')
+
+        def set_rc3_for_throttle_pct(thr_pct):
+            value = int((rc3_min+rc3_dz) + (thr_pct/100.0) * (rc3_max-(rc3_min+rc3_dz)))
+            self.progress("Setting rc3 to %u" % value)
+            self.set_rc(3, value)
+
+        throttle_in_pct = 0
+        set_rc3_for_throttle_pct(throttle_in_pct)
+        self.assert_received_message_field_values("COMPASSMOT_STATUS", {
+            "interference": 0,
+            "throttle": throttle_in_pct
+        }, verbose=True, very_verbose=True)
+        tstart = self.get_sim_time()
+        delta = 5
+        while True:
+            if self.get_sim_time_cached() - tstart > 60:
+                raise NotAchievedException("did not run through entire range")
+            throttle_in_pct += delta
+            self.progress("Using throttle %f%%" % throttle_in_pct)
+            set_rc3_for_throttle_pct(throttle_in_pct)
+            self.wait_message_field_values("COMPASSMOT_STATUS", {
+                "throttle": throttle_in_pct * 10.0,
+            }, verbose=True, very_verbose=True, epsilon=1)
+            if throttle_in_pct == 0:
+                # finished counting down
+                break
+            if throttle_in_pct == 100:
+                # start counting down
+                delta = -delta
+
+        m = self.wait_message_field_values("COMPASSMOT_STATUS", {
+            "throttle": 0,
+        }, verbose=True)
+        for axis in "X", "Y", "Z":
+            fieldname = "Compensation" + axis
+            if getattr(m, fieldname) <= 0:
+                raise NotAchievedException("Expected non-zero %s" % fieldname)
+
+        # it's kind of crap - but any command-ack will stop the
+        # calibration
+        self.mav.mav.command_ack_send(0, 1)
+        self.wait_statustext("Calibration successful")
 
     def MagFail(self):
         '''test failover of compass in EKF'''
@@ -8396,6 +8458,7 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
             ("teraranger_serial", 35),
             ("nooploop_tofsense", 37),
             ("ainsteinlrd1", 42),
+            ("rds02uf", 43),
         ]
         while len(drivers):
             do_drivers = drivers[0:3]
@@ -8823,7 +8886,8 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
             if not isinstance(defaults, list):
                 defaults = [defaults]
             self.customise_SITL_commandline(
-                ["--defaults", ','.join(defaults), ],
+                [],
+                defaults_filepath=defaults,
                 model=model,
                 wipe=True,
             )
@@ -9328,6 +9392,34 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
 
         if ex is not None:
             raise ex
+
+    def GPSForYawCompassLearn(self):
+        '''Moving baseline GPS yaw - with compass learning'''
+        self.context_push()
+        self.load_default_params_file("copter-gps-for-yaw.parm")
+        self.set_parameter("EK3_SRC1_YAW", 3)  # GPS with compass fallback
+        self.reboot_sitl()
+
+        self.wait_gps_fix_type_gte(6, message_type="GPS2_RAW", verbose=True)
+
+        self.wait_ready_to_arm()
+
+        self.takeoff(10, mode='GUIDED')
+        tstart = self.get_sim_time()
+        compass_learn_set = False
+        while True:
+            delta_t = self.get_sim_time_cached() - tstart
+            if delta_t > 30:
+                break
+            if not compass_learn_set and delta_t > 10:
+                self.set_parameter("COMPASS_LEARN", 3)
+                compass_learn_set = True
+
+            self.check_attitudes_match()
+            self.delay_sim_time(1)
+
+        self.context_pop()
+        self.reboot_sitl()
 
     def AP_Avoidance(self):
         '''ADSB-based avoidance'''
@@ -10275,6 +10367,29 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
         self.run_cmd_int(mavutil.mavlink.MAV_CMD_DO_SET_SAFETY_SWITCH_STATE, mavutil.mavlink.SAFETY_SWITCH_STATE_DANGEROUS)
         self.wait_ready_to_arm()
 
+    def ArmSwitchAfterReboot(self):
+        '''test that the arming switch does not trigger after a reboot'''
+        self.wait_ready_to_arm()
+        self.set_parameters({
+            "RC8_OPTION": 153,
+        })
+        self.set_rc(8, 2000)
+        self.wait_armed()
+        self.disarm_vehicle()
+        self.context_collect('STATUSTEXT')
+        self.reboot_sitl()
+
+        tstart = self.get_sim_time()
+        while True:
+            if self.get_sim_time_cached() - tstart > 60:
+                break
+            if self.armed():
+                raise NotAchievedException("Armed after reboot with switch high")
+            armmsg = self.statustext_in_collections('Arm: ')
+            if armmsg is not None:
+                raise NotAchievedException("statustext(%s) means we tried to arm" % armmsg.text)
+        self.progress("Did not arm via arming switfch after a reboot")
+
     def GuidedYawRate(self):
         '''ensuer guided yaw rate is not affected by rate of sewt-attitude messages'''
         self.takeoff(30, mode='GUIDED')
@@ -10704,6 +10819,113 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
 
         self.do_RTL()
 
+    def PILOT_THR_BHV(self):
+        '''test the PILOT_THR_BHV parameter'''
+        self.start_subtest("Test default behaviour, no disarm on land")
+        self.set_parameters({
+            "DISARM_DELAY": 0,
+        })
+        self.takeoff(2, mode='GUIDED')
+        self.set_rc(3, 1500)
+        self.change_mode('LOITER')
+        self.set_rc(3, 1300)
+
+        maintain_armed = WaitAndMaintainArmed(self, minimum_duration=20)
+        maintain_armed.run()
+
+        self.start_subtest("Test THR_BEHAVE_DISARM_ON_LAND_DETECT")
+        self.set_parameters({
+            "PILOT_THR_BHV": 4,  # Disarm on land detection
+        })
+        self.zero_throttle()
+        self.takeoff(2, mode='GUIDED')
+        self.set_rc(3, 1500)
+        self.change_mode('LOITER')
+        self.set_rc(3, 1300)
+
+        self.wait_disarmed()
+
+    def CameraLogMessages(self):
+        '''ensure Camera log messages are good'''
+        self.set_parameter("RC12_OPTION", 9) # CameraTrigger
+        self.set_parameter("CAM1_TYPE", 1)   # Camera with servo trigger
+        self.reboot_sitl() # needed for RC12_OPTION to take effect
+
+        gpis = []
+        gps_raws = []
+
+        self.takeoff(10, mode='GUIDED')
+        self.set_rc(12, 2000)
+        gpis.append(self.assert_receive_message('GLOBAL_POSITION_INT'))
+        gps_raws.append(self.assert_receive_message('GPS_RAW_INT'))
+        self.set_rc(12, 1000)
+
+        self.fly_guided_move_local(0, 0, 20)
+
+        self.set_rc(12, 2000)
+        gpis.append(self.assert_receive_message('GLOBAL_POSITION_INT'))
+        gps_raws.append(self.assert_receive_message('GPS_RAW_INT'))
+        self.set_rc(12, 1000)
+
+        dfreader = self.dfreader_for_current_onboard_log()
+        self.do_RTL()
+
+        for i in range(len(gpis)):
+            gpi = gpis[i]
+            gps_raw = gps_raws[i]
+            m = dfreader.recv_match(type="CAM")
+
+            things = [
+                ["absalt", gpi.alt*0.001, m.Alt],
+                ["relalt", gpi.relative_alt*0.001, m.RelAlt],
+                ["gpsalt", gps_raw.alt*0.001, m.GPSAlt],  # use GPS_RAW here?
+            ]
+            for (name, want, got) in things:
+                if abs(got - want) > 1:
+                    raise NotAchievedException(f"Incorrect {name} {want=} {got=}")
+                self.progress(f"{name} {want=} {got=}")
+
+            want = gpi.relative_alt*0.001
+            got = m.RelAlt
+            if abs(got - want) > 1:
+                raise NotAchievedException(f"Incorrect relalt {want=} {got=}")
+
+    def LoiterToGuidedHomeVSOrigin(self):
+        '''test moving from guided to loiter mode when home is a different alt
+        to origin'''
+        self.set_parameters({
+            "TERRAIN_ENABLE": 1,
+            "SIM_TERRAIN": 1,
+        })
+        self.takeoff(10, mode='GUIDED')
+        here = self.mav.location()
+        self.set_home(here)
+        self.change_mode('LOITER')
+        self.wait_altitude(here.alt-1, here.alt+1, minimum_duration=10)
+        self.disarm_vehicle(force=True)
+        self.reboot_sitl()  # to "unstick" home
+
+    def GuidedModeThrust(self):
+        '''test handling of option-bit-3, where mavlink commands are
+        intrepreted as thrust not climb rate'''
+        self.set_parameter('GUID_OPTIONS', 8)
+        self.change_mode('GUIDED')
+        self.wait_ready_to_arm()
+        self.arm_vehicle()
+        self.mav.mav.set_attitude_target_send(
+            0, # time_boot_ms
+            1, # target sysid
+            1, # target compid
+            0, # bitmask of things to ignore
+            mavextra.euler_to_quat([0, 0, 0]), # att
+            0, # roll rate  (rad/s)
+            0, # pitch rate (rad/s)
+            0, # yaw rate   (rad/s)
+            0.5
+        ) # thrust, 0 to 1
+        self.wait_altitude(0.5, 100, relative=True, timeout=10)
+        self.do_RTL()
+
     def tests2b(self):  # this block currently around 9.5mins here
         '''return list of all tests'''
         ret = ([
@@ -10768,6 +10990,7 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
             self.GuidedYawRate,
             self.NoArmWithoutMissionItems,
             self.DO_CHANGE_SPEED_in_guided,
+            self.ArmSwitchAfterReboot,
             self.RPLidarA1,
             self.RPLidarA2,
             self.SafetySwitch,
@@ -10778,6 +11001,12 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
             self.MAV_CMD_NAV_TAKEOFF,
             self.MAV_CMD_NAV_TAKEOFF_command_int,
             self.Ch6TuningWPSpeed,
+            self.PILOT_THR_BHV,
+            self.GPSForYawCompassLearn,
+            self.CameraLogMessages,
+            self.LoiterToGuidedHomeVSOrigin,
+            self.GuidedModeThrust,
+            self.CompassMot,
         ])
         return ret
 
@@ -10807,6 +11036,9 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
             "GroundEffectCompensation_takeOffExpected": "Flapping",
             "GroundEffectCompensation_touchDownExpected": "Flapping",
             "FlyMissionTwice": "See https://github.com/ArduPilot/ardupilot/pull/18561",
+            "GPSForYawCompassLearn": "Vehicle currently crashed in spectacular fashion",
+            "GuidedModeThrust": "land detector raises internal error as we're not saying we're about to take off but just did",
+            "CompassMot": "Cuases an arithmetic exception in the EKF",
         }
 
 

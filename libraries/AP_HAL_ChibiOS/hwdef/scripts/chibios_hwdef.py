@@ -1207,25 +1207,7 @@ class ChibiOSHWDef(object):
 
         # setup for bootloader build
         if self.is_bootloader_fw():
-            if self.get_config('FULL_CHIBIOS_BOOTLOADER', required=False, default=False):
-                # we got enough space to fit everything so we enable almost everything
-                f.write('''
-#define HAL_BOOTLOADER_BUILD TRUE
-#define HAL_USE_ADC FALSE
-#define HAL_USE_EXT FALSE
-#define HAL_USE_I2C FALSE
-#define HAL_USE_PWM FALSE
-#define HAL_NO_UARTDRIVER
-#ifndef CH_CFG_USE_DYNAMIC
-#define CH_CFG_USE_DYNAMIC FALSE
-#endif
-#define HAL_USE_EMPTY_STORAGE 1
-#ifndef HAL_STORAGE_SIZE
-#define HAL_STORAGE_SIZE 16384
-#endif
-''')
-            else:
-                f.write('''
+            f.write('''
 #define HAL_BOOTLOADER_BUILD TRUE
 #define HAL_USE_ADC FALSE
 #define HAL_USE_EXT FALSE
@@ -1238,7 +1220,9 @@ class ChibiOSHWDef(object):
 // avoid timer and RCIN threads to save memory
 #define HAL_NO_TIMER_THREAD
 #define HAL_NO_RCOUT_THREAD
-#define HAL_NO_RCIN_THREAD
+#ifndef HAL_RCIN_THREAD_ENABLED
+#define HAL_RCIN_THREAD_ENABLED 0
+#endif
 #ifndef AP_HAL_SHARED_DMA_ENABLED
 #define AP_HAL_SHARED_DMA_ENABLED 0
 #endif
@@ -2935,7 +2919,7 @@ Please run: Tools/scripts/build_bootloaders.py %s
             return False
         return True
 
-    def process_line(self, line):
+    def process_line(self, line, depth):
         '''process one line of pin definition file'''
         self.all_lines.append(line)
         a = shlex.split(line, posix=False)
@@ -3072,16 +3056,23 @@ Please run: Tools/scripts/build_bootloaders.py %s
             self.env_vars[name] = value
         elif a[0] == 'define':
             # extract numerical defines for processing by other parts of the script
-            result = re.match(r'define\s*([A-Z_0-9]+)\s*([0-9]+)', line)
+            result = re.match(r'define\s*([A-Z_0-9]+)\s+([0-9]+)', line)
             if result:
-                self.intdefines[result.group(1)] = int(result.group(2))
+                (name, intvalue) = (result.group(1), int(result.group(2)))
+                if name in self.intdefines and self.intdefines[name] == intvalue:
+                    msg = f"{name} already in defines with same value"
+                    if depth == 0:
+                        print(msg)
+                        # raise ValueError(msg)
+
+                self.intdefines[name] = intvalue
 
     def progress(self, message):
         if self.quiet:
             return
         print(message)
 
-    def process_file(self, filename):
+    def process_file(self, filename, depth=0):
         '''process a hwdef.dat file'''
         try:
             f = open(filename, "r")
@@ -3100,9 +3091,9 @@ Please run: Tools/scripts/build_bootloaders.py %s
                     include_file = os.path.normpath(
                         os.path.join(dir, include_file))
                 self.progress("Including %s" % include_file)
-                self.process_file(include_file)
+                self.process_file(include_file, depth+1)
             else:
-                self.process_line(line)
+                self.process_line(line, depth)
 
     def add_apperiph_defaults(self, f):
         '''add default defines for peripherals'''

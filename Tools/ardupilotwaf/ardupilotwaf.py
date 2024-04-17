@@ -118,6 +118,9 @@ COMMON_VEHICLE_DEPENDENT_LIBRARIES = [
     'AP_CheckFirmware',
     'AP_ExternalControl',
     'AP_JSON',
+    'AP_Beacon',
+    'AP_Arming',
+    'AP_RCMapper',
 ]
 
 def get_legacy_defines(sketch_name, bld):
@@ -591,15 +594,15 @@ arducopter and upload it to my board".
         help='''Override board type check and continue loading. Same as using uploader.py --force.
 ''')
 
+    g.add_option('--define',
+        action='append',
+        help='Add C++ define to build.')
+
     g = opt.ap_groups['check']
 
     g.add_option('--check-verbose',
         action='store_true',
         help='Output all test programs.')
-
-    g.add_option('--define',
-        action='append',
-        help='Add C++ define to build.')
 
     g = opt.ap_groups['clean']
 
