@@ -838,6 +838,7 @@ private:
     void log_rxm_raw(const struct ubx_rxm_raw &raw);
     void log_rxm_rawx(const struct ubx_rxm_rawx &raw);
     void log_rxm_rtcm(const struct ubx_rxm_rtcm &rtcm);
+    void log_status(const struct ubx_nav_status &status);
 
 #if GPS_MOVING_BASELINE
     // see if we should use uart2 for moving baseline config

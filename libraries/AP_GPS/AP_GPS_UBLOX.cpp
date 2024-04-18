@@ -516,7 +516,11 @@ AP_GPS_UBLOX::_verify_rate(uint8_t msg_class, uint8_t msg_id, uint8_t rate) {
             config_msg_id = CONFIG_RATE_POSLLH;
             break;
         case MSG_STATUS:
+#if UBLOX_RXM_RTCM_LOGGING
+            desired_rate = RATE_STATUS;
+#else
             desired_rate = havePvtMsg ? 0 : RATE_STATUS;
+#endif
             config_msg_id = CONFIG_RATE_STATUS;
             break;
         case MSG_SOL:
@@ -975,6 +979,20 @@ void AP_GPS_UBLOX::log_rxm_rtcm(const struct ubx_rxm_rtcm &rtcm)
         msgType : rtcm.msgType
     };
     AP::logger().WriteBlock(&header, sizeof(header));
+#endif
+}
+
+void AP_GPS_UBLOX::log_status(const struct ubx_nav_status &status)
+{
+#if HAL_LOGGING_ENABLED
+    if (!should_log()) {
+        return;
+    }
+
+    AP::logger().WriteStreaming("UBX3", "TimeUS,iTOW,fixType,fixStat,diffStat,res,fixTime,uptime", "s-------", "F-------", "QIBBBBII",
+                                AP_HAL::micros64(),
+                                status.itow, status.fix_type, status.fix_status, status.differential_status,
+                                status.res, status.time_to_first_fix, status.uptime);
 #endif
 }
 #endif // UBLOX_RXM_RTCM_LOGGING
@@ -1497,6 +1515,9 @@ AP_GPS_UBLOX::_parse_gps(void)
         Debug("MSG_STATUS fix_status=%u fix_type=%u",
               _buffer.status.fix_status,
               _buffer.status.fix_type);
+#if UBLOX_RXM_RTCM_LOGGING
+        log_status(_buffer.status);
+#endif
         _check_new_itow(_buffer.status.itow);
         if (havePvtMsg) {
             _unconfigured_messages |= CONFIG_RATE_STATUS;
