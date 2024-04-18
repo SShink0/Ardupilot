@@ -2082,7 +2082,7 @@ bool ModeAuto::verify_loiter_time(const AP_Mission::Mission_Command& cmd)
     }
 
     // start our loiter timer
-    if ( loiter_time == 0 ) {
+    if ( loiter_time == 0_ms ) {
         loiter_time = millis();
     }
 
@@ -2157,7 +2157,7 @@ bool ModeAuto::verify_nav_wp(const AP_Mission::Mission_Command& cmd)
     }
 
     // start timer if necessary
-    if (loiter_time == 0) {
+    if (loiter_time == 0_ms) {
         loiter_time = millis();
         if (loiter_time_max > 0) {
             // play a tone
@@ -2234,7 +2234,7 @@ bool ModeAuto::verify_nav_guided_enable(const AP_Mission::Mission_Command& cmd)
 bool ModeAuto::verify_nav_delay(const AP_Mission::Mission_Command& cmd)
 {
     if (millis() - nav_delay_time_start_ms > nav_delay_time_max_ms) {
-        nav_delay_time_max_ms = 0;
+        nav_delay_time_max_ms = 0_ms;
         return true;
     }
     return false;
