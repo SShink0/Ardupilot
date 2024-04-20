@@ -743,7 +743,7 @@ void AC_AutoTune_Heli::dwell_test_init(float start_frq, float stop_frq, float fi
 
     cycle_complete_tgt = false;
     cycle_complete_mtr = false;
-
+    sweep_complete = false;
 
 }
 
@@ -959,6 +959,7 @@ void AC_AutoTune_Heli::dwell_test_run(sweep_info &test_data)
 
         if (now - step_start_time_ms >= sweep_time_ms + 200) {
             // we have passed the maximum stop time
+            sweep_complete = true;
             step = UPDATE_GAINS;
         }
     } else {
@@ -1039,7 +1040,7 @@ void AC_AutoTune_Heli::updating_angle_p_up_all(AxisType test_axis)
     if (sweep_complete && input_type == AC_AutoTune_FreqResp::InputType::SWEEP){
         // if a max gain frequency was found then set the start of the dwells to that freq otherwise start at min frequency
         if (!is_zero(sweep_tgt.maxgain.freq)) {
-            next_test_freq = sweep_tgt.maxgain.freq - 0.25f * 3.14159f * 2.0f;
+            next_test_freq = constrain_float(sweep_tgt.maxgain.freq, min_sweep_freq, max_sweep_freq);
         } else {
             next_test_freq = min_sweep_freq;            
         }
@@ -1068,7 +1069,7 @@ void AC_AutoTune_Heli::updating_max_gains_all(AxisType test_axis)
     if (sweep_complete && input_type == AC_AutoTune_FreqResp::InputType::SWEEP) {
         // if a max gain frequency was found then set the start of the dwells to that freq otherwise start at min frequency
         if (!is_zero(sweep_mtr.ph180.freq)) {
-            next_test_freq = sweep_mtr.ph180.freq - 0.25f * M_2PI;
+            next_test_freq = constrain_float(sweep_mtr.ph180.freq, min_sweep_freq, max_sweep_freq);
             reset_maxgains_update_gain_variables();
         } else {
             next_test_freq = min_sweep_freq;
