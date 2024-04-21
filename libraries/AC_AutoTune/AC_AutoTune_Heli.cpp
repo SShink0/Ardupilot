@@ -1158,9 +1158,9 @@ void AC_AutoTune_Heli::updating_rate_ff_up(float &tune_ff, sweep_info &test_data
     float test_freq_incr = 0.05f * M_2PI;
     next_freq = test_data.freq;
     if (test_data.phase > 15.0f) {
-        next_freq -= test_freq_incr;
+        next_freq = constrain_float(next_freq - test_freq_incr, 0.1 * M_2PI, max_sweep_freq);
     } else if (test_data.phase < 0.0f) {
-        next_freq += test_freq_incr;
+        next_freq = constrain_float(next_freq + test_freq_incr, 0.1 * M_2PI, max_sweep_freq);
     } else {
         if ((test_data.gain > 0.1 && test_data.gain < 0.93) || test_data.gain > 0.98) {
             if (tune_ff > 0.0f) {
