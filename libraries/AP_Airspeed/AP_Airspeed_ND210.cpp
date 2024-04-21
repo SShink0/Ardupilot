@@ -240,7 +240,7 @@ void AP_Airspeed_ND210::_timer()
         return;
     }
 
-    uint16_t P = (((uint16_t)val[0]) << 8) | val[1];
+    int16_t P = (((int16_t)val[0]) << 8) | val[1];
     float diff_pressure_h20 = (float(P) / ND210_SCALE_PRESSURE_ND210) * _selected_pressure_range;
     // GCS_SEND_TEXT(MAV_SEVERITY_ERROR, "ND210 Raw Pressure = 0x%02X", P);
 
