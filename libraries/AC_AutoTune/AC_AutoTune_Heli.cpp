@@ -741,6 +741,8 @@ void AC_AutoTune_Heli::dwell_test_init(float start_frq, float stop_frq, float fi
     filt_tgt_rate_reading.set_cutoff_frequency(0.2f * start_frq);
     filt_att_fdbk_from_velxy_cd.set_cutoff_frequency(0.2f * start_frq);
 
+    curr_test_mtr = {};
+    curr_test_tgt = {};
     cycle_complete_tgt = false;
     cycle_complete_mtr = false;
     sweep_complete = false;
@@ -869,9 +871,13 @@ void AC_AutoTune_Heli::dwell_test_run(sweep_info &test_data)
 
         if (freqresp_mtr.is_cycle_complete()) {
             if (test_input_type == AC_AutoTune_FreqResp::InputType::SWEEP) {
-                curr_test_mtr.freq = freqresp_mtr.get_freq();
-                curr_test_mtr.gain = freqresp_mtr.get_gain();
-                curr_test_mtr.phase = freqresp_mtr.get_phase();
+                if (is_zero(curr_test_mtr.freq) && freqresp_mtr.get_freq() < test_start_freq) {
+                    // don't set data since captured frequency is below the start frequency
+                } else {
+                    curr_test_mtr.freq = freqresp_mtr.get_freq();
+                    curr_test_mtr.gain = freqresp_mtr.get_gain();
+                    curr_test_mtr.phase = freqresp_mtr.get_phase();
+                }
                 // reset cycle_complete to allow indication of next cycle
                 freqresp_mtr.reset_cycle_complete();
 #if HAL_LOGGING_ENABLED
@@ -887,10 +893,14 @@ void AC_AutoTune_Heli::dwell_test_run(sweep_info &test_data)
 
         if (freqresp_tgt.is_cycle_complete()) {
             if (test_input_type == AC_AutoTune_FreqResp::InputType::SWEEP) {
-                curr_test_tgt.freq = freqresp_tgt.get_freq();
-                curr_test_tgt.gain = freqresp_tgt.get_gain();
-                curr_test_tgt.phase = freqresp_tgt.get_phase();
-                if (test_calc_type == DRB) {test_accel_max = freqresp_tgt.get_accel_max();}
+                if (is_zero(curr_test_tgt.freq) && freqresp_tgt.get_freq() < test_start_freq) {
+                    // don't set data since captured frequency is below the start frequency
+                } else {
+                    curr_test_tgt.freq = freqresp_tgt.get_freq();
+                    curr_test_tgt.gain = freqresp_tgt.get_gain();
+                    curr_test_tgt.phase = freqresp_tgt.get_phase();
+                    if (test_calc_type == DRB) {test_accel_max = freqresp_tgt.get_accel_max();}
+                }
                 // reset cycle_complete to allow indication of next cycle
                 freqresp_tgt.reset_cycle_complete();
 #if HAL_LOGGING_ENABLED
@@ -1431,7 +1441,7 @@ void AC_AutoTune_Heli::Log_AutoTune()
 // log autotune time history results for command, angular rate, and attitude
 void AC_AutoTune_Heli::Log_AutoTuneDetails()
 {
-    if (tune_type == SP_UP) {
+    if (tune_type == SP_UP || tune_type == TUNE_CHECK) {
         Log_Write_AutoTuneDetails(command_out, 0.0f, 0.0f, filt_target_rate, rotation_rate);
     } else {
         Log_Write_AutoTuneDetails(command_out, filt_target_rate, rotation_rate, 0.0f, 0.0f);
