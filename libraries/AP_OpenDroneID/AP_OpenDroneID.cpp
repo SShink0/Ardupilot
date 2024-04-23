@@ -161,6 +161,10 @@ void AP_OpenDroneID::get_persistent_params(ExpandingString &str) const
 bool AP_OpenDroneID::pre_arm_check(char* failmsg, uint8_t failmsg_len)
 {
     WITH_SEMAPHORE(_sem);
+    if(_enable == 0) {
+        strncpy(failmsg, "DID_ENABLE must be 1", failmsg_len);
+        return false;
+    }
 
     if (!option_enabled(Options::EnforceArming)) {
         return true;
