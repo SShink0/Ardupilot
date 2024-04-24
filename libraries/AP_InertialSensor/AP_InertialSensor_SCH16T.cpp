@@ -169,7 +169,7 @@ void AP_InertialSensor_SCH16T::run_state_machine()
             hal.console->printf("Resetting (soft)");
             register_write(CTRL_RESET, SPI_SOFT_RESET);
             _state = State::Configure;
-            // wait_us = POWER_ON_TIME;
+            dev->adjust_periodic_callback(periodic_handle, POWER_ON_TIME);
             break;
         }
 
@@ -177,7 +177,7 @@ void AP_InertialSensor_SCH16T::run_state_machine()
     case State::Configure: {
             configure_registers();
             _state = State::LockConfiguration;
-            // wait_us = POWER_ON_TIME;
+            dev->adjust_periodic_callback(periodic_handle, POWER_ON_TIME);
             break;
         }
 
@@ -187,7 +187,7 @@ void AP_InertialSensor_SCH16T::run_state_machine()
             register_write(CTRL_MODE, (EOI | EN_SENSOR)); // Write EOI and EN_SENSOR
 
             _state = State::Validate;
-            // wait_us = 5000UL;
+            dev->adjust_periodic_callback(periodic_handle, 50000UL); // 50ms
             break;
         }
 
@@ -199,21 +199,19 @@ void AP_InertialSensor_SCH16T::run_state_machine()
             if (validate_sensor_status() && validate_register_configuration()) {
                 hal.console->printf("Starting read loop");
                 _state = State::Read;
-                // wait_us = 1000000UL / expected_sample_rate_hz;
+                dev->adjust_periodic_callback(periodic_handle, 1000000UL / expected_sample_rate_hz);
                 dev->set_speed(AP_HAL::Device::SPEED_HIGH);
 
             } else {
                 hal.console->printf("Sensor or Register validation failed, resetting");
                 _state = State::Reset;
-                // wait_us = 100000UL;
+                dev->adjust_periodic_callback(periodic_handle, 100000UL); // 100ms
             }
 
             break;
         }
 
     case State::Read: {
-            uint32_t tstart = AP_HAL::micros();
-
             // Collect the data
             SensorData data = {};
 
@@ -231,12 +229,9 @@ void AP_InertialSensor_SCH16T::run_state_machine()
 
                 _publish_temperature(accel_instance, float(data.temp)/100.f);
 
-                // Calculate next reschedule
-                const uint32_t period_us = (1000000UL / expected_sample_rate_hz) - 20U;
-                uint32_t dt = AP_HAL::micros() - tstart;
-                if (dt < period_us) {
-                    // wait_us = period_us - dt;
-                }
+                // NOTE: taken from other IMU drivers
+                // adjust the periodic callback to be synchronous with the incoming data
+                dev->adjust_periodic_callback(periodic_handle, 1000000UL / expected_sample_rate_hz);
 
                 if (failure_count > 0) {
                     failure_count--;
@@ -259,9 +254,6 @@ void AP_InertialSensor_SCH16T::run_state_machine()
     default:
         break;
     } // end switch/case
-
-    // reschedule
-    // hal.scheduler->delay_microseconds(wait_us);
 }
 
 bool AP_InertialSensor_SCH16T::read_data(SensorData *data)
