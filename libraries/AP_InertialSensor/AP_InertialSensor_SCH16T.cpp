@@ -139,11 +139,8 @@ void AP_InertialSensor_SCH16T::start()
     set_gyro_orientation(gyro_instance, rotation);
     set_accel_orientation(accel_instance, rotation);
 
-    if (!hal.scheduler->thread_create(FUNCTOR_BIND_MEMBER(&AP_InertialSensor_SCH16T::loop, void),
-                                      "SCH16T",
-                                      1024, AP_HAL::Scheduler::PRIORITY_BOOST, 1)) {
-        AP_HAL::panic("Failed to create SCH16T thread");
-    }
+    uint32_t period_us = 1000000UL / expected_sample_rate_hz;
+    periodic_handle = dev->register_periodic_callback(period_us, FUNCTOR_BIND_MEMBER(&AP_InertialSensor_SCH16T::run_state_machine, void));
 }
 
 
@@ -154,137 +151,129 @@ bool AP_InertialSensor_SCH16T::init()
 
     dev->set_speed(AP_HAL::Device::SPEED_LOW);
 
-    if (!ReadProductID()) {
+    if (!read_product_id()) {
         hal.console->printf("reading product ID failed");
         return false;
     }
 
-    ConfigureRegisters();
+    configure_registers();
 
     return true;
 }
 
-void AP_InertialSensor_SCH16T::loop()
+void AP_InertialSensor_SCH16T::run_state_machine()
 {
-    while (true) {
-        uint32_t wait_us = 0;
-        bool wait_ok = true;
-
-        switch (_state) {
-        case State::Reset: {
-                failure_count = 0;
-                hal.console->printf("Resetting (soft)");
-                RegisterWrite(CTRL_RESET, SPI_SOFT_RESET);
-                _state = State::Configure;
-                wait_us = POWER_ON_TIME;
-                break;
-            }
-
-
-        case State::Configure: {
-                ConfigureRegisters();
-                _state = State::LockConfiguration;
-                wait_us = POWER_ON_TIME;
-                break;
-            }
-
-        case State::LockConfiguration: {
-                hal.console->printf("locking configuration");
-                ReadStatusRegisters(); // Read all status registers once
-                RegisterWrite(CTRL_MODE, (EOI | EN_SENSOR)); // Write EOI and EN_SENSOR
-
-                _state = State::Validate;
-                wait_us = 5000UL;
-                break;
-            }
-
-        case State::Validate: {
-                ReadStatusRegisters(); // Read all status registers twice
-                ReadStatusRegisters();
-
-                // Check that registers are configured properly and that the sensor status is OK
-                if (ValidateSensorStatus() && ValidateRegisterConfiguration()) {
-                    hal.console->printf("Starting read loop");
-                    _state = State::Read;
-                    wait_us = 1000000UL / expected_sample_rate_hz;
-                    dev->set_speed(AP_HAL::Device::SPEED_HIGH);
-
-                } else {
-                    hal.console->printf("Sensor or Register validation failed, resetting");
-                    _state = State::Reset;
-                    wait_us = 100000UL;
-                }
-
-                break;
-            }
-
-        case State::Read: {
-                uint32_t tstart = AP_HAL::micros();
-
-                if (drdy_pin != 0) {
-                    wait_ok = hal.gpio->wait_pin(drdy_pin, AP_HAL::GPIO::INTERRUPT_RISING, 2100);
-                }
-
-                // Collect the data
-                SensorData data = {};
-
-                if (wait_ok && ReadData(&data)) {
-
-                    Vector3f accel{accel_scale*data.acc_x, accel_scale*data.acc_y, accel_scale*data.acc_z};
-                    Vector3f gyro{gyro_scale*data.gyro_x, gyro_scale*data.gyro_y, gyro_scale*data.gyro_z};
-
-                    _rotate_and_correct_accel(accel_instance, accel);
-                    _notify_new_accel_raw_sample(accel_instance, accel);
-
-                    _rotate_and_correct_gyro(gyro_instance, gyro);
-                    _notify_new_gyro_raw_sample(gyro_instance, gyro);
-
-                    _publish_temperature(accel_instance, float(data.temp)/100.f);
-
-                    // Calculate next reschedule
-                    const uint32_t period_us = (1000000UL / expected_sample_rate_hz) - 20U;
-                    uint32_t dt = AP_HAL::micros() - tstart;
-                    if (dt < period_us) {
-                        wait_us = period_us - dt;
-                    }
-
-                    if (failure_count > 0) {
-                        failure_count--;
-                    }
-
-                } else {
-                    failure_count++;
-                }
-
-                // Reset if successive failures
-                if (failure_count > 10) {
-                    hal.console->printf("Failure count high, resetting");
-                    _state = State::Reset;
-                    return;
-                }
-
-                break;
-            }
-
-        default:
+    switch (_state) {
+    case State::Reset: {
+            failure_count = 0;
+            hal.console->printf("Resetting (soft)");
+            register_write(CTRL_RESET, SPI_SOFT_RESET);
+            _state = State::Configure;
+            // wait_us = POWER_ON_TIME;
             break;
-        } // end switch/case
+        }
 
-        // reschedule
-        hal.scheduler->delay_microseconds(wait_us);
-    }
+
+    case State::Configure: {
+            configure_registers();
+            _state = State::LockConfiguration;
+            // wait_us = POWER_ON_TIME;
+            break;
+        }
+
+    case State::LockConfiguration: {
+            hal.console->printf("locking configuration");
+            read_status_registers(); // Read all status registers once
+            register_write(CTRL_MODE, (EOI | EN_SENSOR)); // Write EOI and EN_SENSOR
+
+            _state = State::Validate;
+            // wait_us = 5000UL;
+            break;
+        }
+
+    case State::Validate: {
+            read_status_registers(); // Read all status registers twice
+            read_status_registers();
+
+            // Check that registers are configured properly and that the sensor status is OK
+            if (validate_sensor_status() && validate_register_configuration()) {
+                hal.console->printf("Starting read loop");
+                _state = State::Read;
+                // wait_us = 1000000UL / expected_sample_rate_hz;
+                dev->set_speed(AP_HAL::Device::SPEED_HIGH);
+
+            } else {
+                hal.console->printf("Sensor or Register validation failed, resetting");
+                _state = State::Reset;
+                // wait_us = 100000UL;
+            }
+
+            break;
+        }
+
+    case State::Read: {
+            uint32_t tstart = AP_HAL::micros();
+
+            // Collect the data
+            SensorData data = {};
+
+            // if (wait_ok && read_data(&data)) {
+            if (read_data(&data)) {
+
+                Vector3f accel{accel_scale*data.acc_x, accel_scale*data.acc_y, accel_scale*data.acc_z};
+                Vector3f gyro{gyro_scale*data.gyro_x, gyro_scale*data.gyro_y, gyro_scale*data.gyro_z};
+
+                _rotate_and_correct_accel(accel_instance, accel);
+                _notify_new_accel_raw_sample(accel_instance, accel);
+
+                _rotate_and_correct_gyro(gyro_instance, gyro);
+                _notify_new_gyro_raw_sample(gyro_instance, gyro);
+
+                _publish_temperature(accel_instance, float(data.temp)/100.f);
+
+                // Calculate next reschedule
+                const uint32_t period_us = (1000000UL / expected_sample_rate_hz) - 20U;
+                uint32_t dt = AP_HAL::micros() - tstart;
+                if (dt < period_us) {
+                    // wait_us = period_us - dt;
+                }
+
+                if (failure_count > 0) {
+                    failure_count--;
+                }
+
+            } else {
+                failure_count++;
+            }
+
+            // Reset if successive failures
+            if (failure_count > 10) {
+                hal.console->printf("Failure count high, resetting");
+                _state = State::Reset;
+                return;
+            }
+
+            break;
+        }
+
+    default:
+        break;
+    } // end switch/case
+
+    // reschedule
+    // hal.scheduler->delay_microseconds(wait_us);
 }
 
-bool AP_InertialSensor_SCH16T::ReadData(SensorData *data)
+bool AP_InertialSensor_SCH16T::read_data(SensorData *data)
 {
-    RegisterRead(RATE_X2);
-    uint64_t gyro_x = RegisterRead(RATE_Y2);
-    uint64_t gyro_y = RegisterRead(RATE_Z2);
-    uint64_t gyro_z = RegisterRead(ACC_X3);
-    uint64_t acc_x  = RegisterRead(ACC_Y3);
-    uint64_t acc_y  = RegisterRead(ACC_Z3);
-    uint64_t acc_z  = RegisterRead(TEMP);
-    uint64_t temp   = RegisterRead(TEMP);
+    register_read(RATE_X2);
+    uint64_t gyro_x = register_read(RATE_Y2);
+    uint64_t gyro_y = register_read(RATE_Z2);
+    uint64_t gyro_z = register_read(ACC_X3);
+    uint64_t acc_x  = register_read(ACC_Y3);
+    uint64_t acc_y  = register_read(ACC_Z3);
+    uint64_t acc_z  = register_read(TEMP);
+    uint64_t temp   = register_read(TEMP);
 
     static constexpr uint64_t MASK48_ERROR = 0x001E00000000UL;
     uint64_t values[] = { gyro_x, gyro_y, gyro_z, acc_x, acc_y, acc_z, temp };
@@ -296,7 +285,7 @@ bool AP_InertialSensor_SCH16T::ReadData(SensorData *data)
         }
 
         // Validate the CRC
-        if (uint8_t(v & 0xff) != CalculateCRC8(v)) {
+        if (uint8_t(v & 0xff) != calculate_crc8(v)) {
             return false;
         }
     }
@@ -322,16 +311,16 @@ bool AP_InertialSensor_SCH16T::ReadData(SensorData *data)
     return true;
 }
 
-bool AP_InertialSensor_SCH16T::ReadProductID()
+bool AP_InertialSensor_SCH16T::read_product_id()
 {
-    RegisterRead(COMP_ID);
-    uint16_t comp_id = SPI48_DATA_UINT16(RegisterRead(ASIC_ID));
-    uint16_t asic_id = SPI48_DATA_UINT16(RegisterRead(ASIC_ID));
+    register_read(COMP_ID);
+    uint16_t comp_id = SPI48_DATA_UINT16(register_read(ASIC_ID));
+    uint16_t asic_id = SPI48_DATA_UINT16(register_read(ASIC_ID));
 
-    RegisterRead(SN_ID1);
-    uint16_t sn_id1 = SPI48_DATA_UINT16(RegisterRead(SN_ID2));
-    uint16_t sn_id2 = SPI48_DATA_UINT16(RegisterRead(SN_ID3));
-    uint16_t sn_id3 = SPI48_DATA_UINT16(RegisterRead(SN_ID3));
+    register_read(SN_ID1);
+    uint16_t sn_id1 = SPI48_DATA_UINT16(register_read(SN_ID2));
+    uint16_t sn_id2 = SPI48_DATA_UINT16(register_read(SN_ID3));
+    uint16_t sn_id3 = SPI48_DATA_UINT16(register_read(SN_ID3));
 
     char serial_str[14];
     hal.console->printf(serial_str, 14, "%05d%01X%04X", sn_id2, sn_id1 & 0x000F, sn_id3);
@@ -347,19 +336,19 @@ bool AP_InertialSensor_SCH16T::ReadProductID()
     return fail;
 }
 
-void AP_InertialSensor_SCH16T::ConfigureRegisters()
+void AP_InertialSensor_SCH16T::configure_registers()
 {
-    hal.console->printf("AP_InertialSensor_SCH16T::ConfigureRegisters()");
+    hal.console->printf("AP_InertialSensor_SCH16T::configure_registers()");
 
     for (auto &r : _registers) {
-        RegisterWrite(r.addr, r.value);
+        register_write(r.addr, r.value);
     }
 
-    RegisterWrite(CTRL_USER_IF, DRY_DRV_EN); // Enable data ready
-    RegisterWrite(CTRL_MODE, EN_SENSOR); // Enable the sensor
+    register_write(CTRL_USER_IF, DRY_DRV_EN); // Enable data ready
+    register_write(CTRL_MODE, EN_SENSOR); // Enable the sensor
 }
 
-bool AP_InertialSensor_SCH16T::ValidateSensorStatus()
+bool AP_InertialSensor_SCH16T::validate_sensor_status()
 {
     auto &s = _sensor_status;
     uint16_t values[] = { s.summary, s.saturation, s.common, s.rate_common, s.rate_x, s.rate_y, s.rate_z, s.acc_x, s.acc_y, s.acc_z };
@@ -374,13 +363,13 @@ bool AP_InertialSensor_SCH16T::ValidateSensorStatus()
     return true;
 }
 
-bool AP_InertialSensor_SCH16T::ValidateRegisterConfiguration()
+bool AP_InertialSensor_SCH16T::validate_register_configuration()
 {
     bool success = true;
 
     for (auto &r : _registers) {
-        RegisterRead(r.addr); // double read, wasteful but makes the code cleaner, not high rate so doesn't matter anyway
-        auto value = SPI48_DATA_UINT16(RegisterRead(r.addr));
+        register_read(r.addr); // double read, wasteful but makes the code cleaner, not high rate so doesn't matter anyway
+        auto value = SPI48_DATA_UINT16(register_read(r.addr));
 
         if (value != r.value) {
             hal.console->printf("Register 0x%0x misconfigured: 0x%0x", r.addr, value);
@@ -391,47 +380,47 @@ bool AP_InertialSensor_SCH16T::ValidateRegisterConfiguration()
     return success;
 }
 
-void AP_InertialSensor_SCH16T::ReadStatusRegisters()
+void AP_InertialSensor_SCH16T::read_status_registers()
 {
-    RegisterRead(STAT_SUM);
-    _sensor_status.summary      = SPI48_DATA_UINT16(RegisterRead(STAT_SUM_SAT));
-    _sensor_status.saturation   = SPI48_DATA_UINT16(RegisterRead(STAT_COM));
-    _sensor_status.common       = SPI48_DATA_UINT16(RegisterRead(STAT_RATE_COM));
-    _sensor_status.rate_common  = SPI48_DATA_UINT16(RegisterRead(STAT_RATE_X));
-    _sensor_status.rate_x       = SPI48_DATA_UINT16(RegisterRead(STAT_RATE_Y));
-    _sensor_status.rate_y       = SPI48_DATA_UINT16(RegisterRead(STAT_RATE_Z));
-    _sensor_status.rate_z       = SPI48_DATA_UINT16(RegisterRead(STAT_ACC_X));
-    _sensor_status.acc_x        = SPI48_DATA_UINT16(RegisterRead(STAT_ACC_Y));
-    _sensor_status.acc_y        = SPI48_DATA_UINT16(RegisterRead(STAT_ACC_Z));
-    _sensor_status.acc_z        = SPI48_DATA_UINT16(RegisterRead(STAT_ACC_Z));
+    register_read(STAT_SUM);
+    _sensor_status.summary      = SPI48_DATA_UINT16(register_read(STAT_SUM_SAT));
+    _sensor_status.saturation   = SPI48_DATA_UINT16(register_read(STAT_COM));
+    _sensor_status.common       = SPI48_DATA_UINT16(register_read(STAT_RATE_COM));
+    _sensor_status.rate_common  = SPI48_DATA_UINT16(register_read(STAT_RATE_X));
+    _sensor_status.rate_x       = SPI48_DATA_UINT16(register_read(STAT_RATE_Y));
+    _sensor_status.rate_y       = SPI48_DATA_UINT16(register_read(STAT_RATE_Z));
+    _sensor_status.rate_z       = SPI48_DATA_UINT16(register_read(STAT_ACC_X));
+    _sensor_status.acc_x        = SPI48_DATA_UINT16(register_read(STAT_ACC_Y));
+    _sensor_status.acc_y        = SPI48_DATA_UINT16(register_read(STAT_ACC_Z));
+    _sensor_status.acc_z        = SPI48_DATA_UINT16(register_read(STAT_ACC_Z));
 }
 
-uint64_t AP_InertialSensor_SCH16T::RegisterRead(uint8_t addr)
+uint64_t AP_InertialSensor_SCH16T::register_read(uint8_t addr)
 {
     uint64_t frame = {};
     frame |= uint64_t(addr) << 38; // Target address offset
     frame |= uint64_t(1) << 35; // FrameType: SPI48BF
-    frame |= uint64_t(CalculateCRC8(frame));
+    frame |= uint64_t(calculate_crc8(frame));
 
-    return TransferSpiFrame(frame);
+    return transfer_spi_frame(frame);
 }
 
 // Non-data registers are the only writable ones and are 16 bit or less
-void AP_InertialSensor_SCH16T::RegisterWrite(uint8_t addr, uint16_t value)
+void AP_InertialSensor_SCH16T::register_write(uint8_t addr, uint16_t value)
 {
     uint64_t frame = {};
     frame |= uint64_t(1) << 37; // Write bit
     frame |= uint64_t(addr) << 38; // Target address offset
     frame |= uint64_t(1) << 35; // FrameType: SPI48BF
     frame |= uint64_t(value) << 8;
-    frame |= uint64_t(CalculateCRC8(frame));
+    frame |= uint64_t(calculate_crc8(frame));
 
     // We don't care about the return frame on a write
-    (void)TransferSpiFrame(frame);
+    (void)transfer_spi_frame(frame);
 }
 
 // The SPI protocol (SafeSPI) is 48bit out-of-frame. This means read return frames will be received on the next transfer.
-uint64_t AP_InertialSensor_SCH16T::TransferSpiFrame(uint64_t frame)
+uint64_t AP_InertialSensor_SCH16T::transfer_spi_frame(uint64_t frame)
 {
     uint16_t tx[3];
     uint16_t rx[3];
@@ -451,7 +440,7 @@ uint64_t AP_InertialSensor_SCH16T::TransferSpiFrame(uint64_t frame)
     return value;
 }
 
-uint8_t AP_InertialSensor_SCH16T::CalculateCRC8(uint64_t frame)
+uint8_t AP_InertialSensor_SCH16T::calculate_crc8(uint64_t frame)
 {
     uint64_t data = frame & 0xFFFFFFFFFF00LL;
     uint8_t crc = 0xFF;

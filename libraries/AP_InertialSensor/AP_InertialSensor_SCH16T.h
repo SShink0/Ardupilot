@@ -73,20 +73,20 @@ private:
     };
 
     bool init();
-    void loop(void);
+    void run_state_machine(void);
 
-    bool ReadProductID();
-    void ReadStatusRegisters();
-    bool ValidateSensorStatus();
-    void ConfigureRegisters();
-    bool ValidateRegisterConfiguration();
+    bool read_product_id();
+    void read_status_registers();
+    bool validate_sensor_status();
+    void configure_registers();
+    bool validate_register_configuration();
 
-    bool ReadData(SensorData *data);
+    bool read_data(SensorData *data);
 
-    void RegisterWrite(uint8_t addr, uint16_t value);
-    uint64_t RegisterRead(uint8_t addr);
-    uint64_t TransferSpiFrame(uint64_t frame);
-    uint8_t CalculateCRC8(uint64_t frame);
+    void register_write(uint8_t addr, uint16_t value);
+    uint64_t register_read(uint8_t addr);
+    uint64_t transfer_spi_frame(uint64_t frame);
+    uint8_t calculate_crc8(uint64_t frame);
 
     enum class State : uint8_t {
         Reset,
@@ -100,6 +100,7 @@ private:
     SensorStatus _sensor_status;
 
     AP_HAL::OwnPtr<AP_HAL::Device> dev;
+    AP_HAL::Device::PeriodicHandle periodic_handle;
 
     uint8_t accel_instance {};
     uint8_t gyro_instance = {};
