@@ -160,10 +160,15 @@ void AP_OpenDroneID::get_persistent_params(ExpandingString &str) const
 // Except in the case of an in-flight reboot
 bool AP_OpenDroneID::pre_arm_check(char* failmsg, uint8_t failmsg_len)
 {
-    WITH_SEMAPHORE(_sem);
+    WITH_SEMAPHORE(_sem);    
 
     if (!option_enabled(Options::EnforceArming)) {
         return true;
+    }
+
+    if(_enable == 0) {
+        strncpy(failmsg, "DID_ENABLE must be 1", failmsg_len);
+        return false;
     }
 
     if (pkt_basic_id.id_type == MAV_ODID_ID_TYPE_NONE) {
