@@ -59,8 +59,10 @@ void AP_Mount_Topotek::init()
 
     _uart = serial_manager.find_serial(AP_SerialManager::SerialProtocol_Gimbal, 0);
     if (_uart != nullptr) {
-        _initialised = true;
+        return;
     }
+
+    _initialised = true;
     AP_Mount_Backend::init();
 }
 
