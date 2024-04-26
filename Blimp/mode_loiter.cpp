@@ -53,6 +53,10 @@ void ModeLoiter::run()
         target_pos.y += pilot.y;
     }
 
+    if (!blimp.motors->armed()) {
+        target_pos = blimp.pos_ned;
+        target_yaw = blimp.ahrs.get_yaw();
+    }
 
     blimp.loiter->run(target_pos, target_yaw, Vector4b{false,false,false,false});
 }

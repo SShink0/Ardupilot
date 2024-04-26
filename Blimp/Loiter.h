@@ -60,6 +60,18 @@ public:
     // var_info for holding Parameter information
     static const struct AP_Param::GroupInfo        var_info[];
 
+    // Vel & pos PIDs
+    //p, i, d, ff, imax, filt_T_hz, filt_E_hz, filt_D_hz
+    AC_PID pid_vel_x{3, 0.2, 0, 0, 0.2, 0, 0, 0};
+    AC_PID pid_vel_y{3, 0.2, 0, 0, 0.2, 0, 0, 0};
+    AC_PID pid_vel_z{7, 1.5, 0, 0, 1, 0, 0, 0};
+    AC_PID pid_vel_yaw{3, 0.4, 0, 0, 0.2, 0, 0, 0};
+
+    AC_PID pid_pos_x{1, 0.05, 0, 0, 0.1, 0, 0, 0};
+    AC_PID pid_pos_y{1, 0.05, 0, 0, 0.1, 0, 0, 0};
+    AC_PID pid_pos_z{0.7, 0,   0, 0, 0, 0, 0, 0};
+    AC_PID pid_pos_yaw{1.2, 0.5, 0, 0, 2, 0, 0, 0};
+
     AP_Float            rp_damp_lim;
     AP_Float            rp_damp_off;
     AP_Float            rp_damp_amt;

@@ -93,20 +93,11 @@ public:
         k_param_adsb,
         k_param_notify,
 
-        //PID Controllers
-        k_param_pid_vel_x = 32,
-        k_param_pid_vel_z,
-        k_param_pid_vel_yaw,
-        k_param_pid_pos_x,
-        k_param_pid_pos_z,
-        k_param_pid_pos_yaw,
-        k_param_pid_vel_y,
-        k_param_pid_pos_y,
+        //Position & Velocity controller params
         k_param_loiter = 40,
         k_param_max_man_thr,
         k_param_stream_rate,
 
-        //Position & Velocity controller params
         k_param_max_vel_x = 50,
         k_param_max_vel_z,
         k_param_max_vel_yaw,
