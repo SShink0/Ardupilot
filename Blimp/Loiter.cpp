@@ -3,14 +3,14 @@
 #include <AC_AttitudeControl/AC_PosControl.h>
 
 const AP_Param::GroupInfo Loiter::var_info[] = {
-    AP_SUBGROUPINFO(pid_vel_x, "LOIT_VELX_", 0, Loiter, AC_PID),
-    AP_SUBGROUPINFO(pid_vel_y, "LOIT_VELY_", 1, Loiter, AC_PID),
-    AP_SUBGROUPINFO(pid_vel_z, "LOIT_VELZ_", 2, Loiter, AC_PID),
-    AP_SUBGROUPINFO(pid_vel_yaw, "LOIT_VELYAW_", 3, Loiter, AC_PID),
-    AP_SUBGROUPINFO(pid_pos_x, "LOIT_POSX_", 4, Loiter, AC_PID),
-    AP_SUBGROUPINFO(pid_pos_y, "LOIT_POSY_", 5, Loiter, AC_PID),
-    AP_SUBGROUPINFO(pid_pos_z, "LOIT_POSZ_", 6, Loiter, AC_PID),
-    AP_SUBGROUPINFO(pid_pos_yaw, "LOIT_POSYAW_", 7, Loiter, AC_PID),
+    AP_SUBGROUPINFO(pid_vel_x, "VELX_", 0, Loiter, AC_PID),
+    AP_SUBGROUPINFO(pid_vel_y, "VELY_", 1, Loiter, AC_PID),
+    AP_SUBGROUPINFO(pid_vel_z, "VELZ_", 2, Loiter, AC_PID),
+    AP_SUBGROUPINFO(pid_vel_yaw, "VELYAW_", 3, Loiter, AC_PID),
+    AP_SUBGROUPINFO(pid_pos_x, "POSX_", 4, Loiter, AC_PID),
+    AP_SUBGROUPINFO(pid_pos_y, "POSY_", 5, Loiter, AC_PID),
+    AP_SUBGROUPINFO(pid_pos_z, "POSZ_", 6, Loiter, AC_PID),
+    AP_SUBGROUPINFO(pid_pos_yaw, "POSYAW_", 7, Loiter, AC_PID),
 
     // @Param: SCALER_SPD
     // @DisplayName: Loiter scaler speed
