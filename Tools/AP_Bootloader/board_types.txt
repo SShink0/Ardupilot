@@ -278,6 +278,8 @@ AP_HW_MicoAir743                     1166
 AP_HW_ESP32_PERIPH                   1205
 AP_HW_ESP32S3_PERIPH                 1206
 
+AP_HW_CBUnmanned-CM405-FC            1301
+
 AP_HW_CUBEORANGE_PERIPH              1400
 AP_HW_CUBEBLACK_PERIPH               1401
 AP_HW_PIXRACER_PERIPH                1402
