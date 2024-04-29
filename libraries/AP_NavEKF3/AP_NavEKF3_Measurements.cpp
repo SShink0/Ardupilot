@@ -684,11 +684,7 @@ void NavEKF3_core::readGpsData()
     if (validOrigin) {
         gpsDataNew.lat = gpsloc.lat;
         gpsDataNew.lng = gpsloc.lng;
-        if ((frontend->_originHgtMode & (1<<2)) == 0) {
-            gpsDataNew.hgt = (ftype)((double)0.01 * (double)gpsloc.alt - ekfGpsRefHgt);
-        } else {
-            gpsDataNew.hgt = 0.01 * (gpsloc.alt - EKF_origin.alt);
-        }
+        gpsDataNew.hgt = (ftype)((double)0.01 * (double)gpsloc.alt - ekfGpsRefHgt);
         storedGPS.push(gpsDataNew);
         // declare GPS in use
         gpsIsInUse = true;
