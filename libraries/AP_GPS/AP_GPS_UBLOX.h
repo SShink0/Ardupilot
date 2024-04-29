@@ -99,9 +99,10 @@
 #define CONFIG_TMODE_MODE    (1<<16)
 #define CONFIG_RTK_MOVBASE   (1<<17)
 #define CONFIG_TIM_TM2       (1<<18)
-#define CONFIG_M10           (1<<19)
-#define CONFIG_L5            (1<<20)
-#define CONFIG_LAST          (1<<21) // this must always be the last bit
+#define CONFIG_F9            (1<<19)
+#define CONFIG_M10           (1<<20)
+#define CONFIG_L5            (1<<21)
+#define CONFIG_LAST          (1<<22) // this must always be the last bit
 
 #define CONFIG_REQUIRED_INITIAL (CONFIG_RATE_NAV | CONFIG_RATE_POSLLH | CONFIG_RATE_STATUS | CONFIG_RATE_VELNED)
 
@@ -742,6 +743,7 @@ private:
         STEP_VERSION,
         STEP_RTK_MOVBASE, // setup moving baseline
         STEP_TIM_TM2,
+        STEP_F9,
         STEP_M10,
         STEP_L5,
         STEP_LAST
@@ -882,6 +884,8 @@ private:
     static const config_list config_M10[];
     static const config_list config_L5_ovrd_ena[];
     static const config_list config_L5_ovrd_dis[];
+    // scratch space for GNSS config
+    static config_list config_GNSS[UBLOX_MAX_GNSS_CONFIG_BLOCKS*3];
 };
 
 #endif
