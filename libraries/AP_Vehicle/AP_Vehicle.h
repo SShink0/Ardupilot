@@ -173,7 +173,7 @@ public:
     // Method to control vehicle position for use by external control
     virtual bool set_target_location(const Location& target_loc) { return false; }
 #endif // AP_EXTERNAL_CONTROL_ENABLED
-#if AP_SCRIPTING_ENABLED
+#if AP_SCRIPTING_ENABLED || AP_EXTERNAL_CONTROL_ENABLED
     /*
       methods to control vehicle for use by scripting
     */
