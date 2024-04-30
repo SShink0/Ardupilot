@@ -274,6 +274,14 @@ const AP_Param::GroupInfo AP_GPS::var_info[] = {
     AP_SUBGROUPINFO(params[1], "2_", 33, AP_GPS, AP_GPS::Params),
 #endif
 
+    // @Param: _RTCM_DATA
+    // @DisplayName: RTCM data logging
+    // @Description: Handles logging RTCM data; on uBlox chips that support RTCM data this will log RXM messages into logger;
+    // @Values: 0:Ignore,1:Always log
+    // @RebootRequired: True
+    // @User: Advanced
+    AP_GROUPINFO("_RTCM_DATA", 34, AP_GPS, _rtcm_data, 0),
+
     AP_GROUPEND
 };
 
@@ -1635,7 +1643,7 @@ bool AP_GPS::parse_rtcm_injection(mavlink_channel_t chan, const mavlink_gps_rtcm
             const uint32_t crc = crc_crc32(0, buf, len);
 
 #if HAL_LOGGING_ENABLED
-            AP::logger().WriteStreaming("RTCM", "TimeUS,Chan,RTCMId,Len,CRC", "s#---", "F----", "QBHHI",
+            AP::logger().WriteStreaming("RTKR", "TimeUS,Chan,RTCMId,Len,CRC", "s#---", "F----", "QBHHI",
                                         AP_HAL::micros64(),
                                         uint8_t(chan),
                                         rtcm.parsers[chan]->get_id(),
@@ -1645,8 +1653,8 @@ bool AP_GPS::parse_rtcm_injection(mavlink_channel_t chan, const mavlink_gps_rtcm
             
             bool already_seen = false;
             for (uint8_t c=0; c<ARRAY_SIZE(rtcm.sent_crc); c++) {
-                if (rtcm.sent_crc[c] == crc) {
-                    // we have already sent this message
+                if (rtcm.sent_crc[c] == crc && rtcm.sent_channels[c] != chan) {
+                    // we have already sent this message, duplicates on the same channel are allowed
                     already_seen = true;
                     break;
                 }
@@ -1655,9 +1663,18 @@ bool AP_GPS::parse_rtcm_injection(mavlink_channel_t chan, const mavlink_gps_rtcm
                 continue;
             }
             rtcm.sent_crc[rtcm.sent_idx] = crc;
+            rtcm.sent_channels[rtcm.sent_idx] = chan;
             rtcm.sent_idx = (rtcm.sent_idx+1) % ARRAY_SIZE(rtcm.sent_crc);
 
             if (buf != nullptr && len > 0) {
+#if HAL_LOGGING_ENABLED
+                AP::logger().WriteStreaming("RTKT", "TimeUS,Chan,RTCMId,Len,CRC", "s#---", "F----", "QBHHI",
+                                            AP_HAL::micros64(),
+                                            uint8_t(chan),
+                                            rtcm.parsers[chan]->get_id(),
+                                            len,
+                                            crc);
+#endif
                 inject_data(buf, len);
             }
             rtcm.parsers[chan]->reset();

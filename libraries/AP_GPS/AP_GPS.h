@@ -615,6 +615,7 @@ protected:
     AP_Enum<SBAS_Mode> _sbas_mode;
     AP_Int8 _min_elevation;
     AP_Int8 _raw_data;
+    AP_Int8 _rtcm_data;
     AP_Int8 _save_config;
     AP_Int8 _auto_config;
     AP_Int8 _blend_mask;
@@ -814,6 +815,7 @@ private:
     struct {
         RTCM3_Parser *parsers[MAVLINK_COMM_NUM_BUFFERS];
         uint32_t sent_crc[32];
+        mavlink_channel_t sent_channels[32];
         uint8_t sent_idx;
         uint16_t seen_mav_channels;
     } rtcm;
