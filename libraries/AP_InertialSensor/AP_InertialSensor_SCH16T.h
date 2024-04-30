@@ -24,8 +24,7 @@ class AP_InertialSensor_SCH16T : public AP_InertialSensor_Backend {
 public:
     static AP_InertialSensor_Backend *probe(AP_InertialSensor &imu,
                                             AP_HAL::OwnPtr<AP_HAL::Device> dev,
-                                            enum Rotation rotation,
-                                            uint8_t drdy_gpio);
+                                            enum Rotation rotation);
 
     /**
      * Configure the sensors and start reading routine.
@@ -34,10 +33,10 @@ public:
     bool update() override;
 
 private:
+
     AP_InertialSensor_SCH16T(AP_InertialSensor &imu,
                                 AP_HAL::OwnPtr<AP_HAL::Device> dev,
-                                enum Rotation rotation,
-                                uint8_t drdy_gpio);
+                                enum Rotation rotation);
 
     struct SensorData {
         int32_t acc_x;
@@ -89,12 +88,13 @@ private:
     uint8_t calculate_crc8(uint64_t frame);
 
     enum class State : uint8_t {
+        PowerOn,
         Reset,
         Configure,
         LockConfiguration,
         Validate,
         Read,
-    } _state = State::Reset;
+    } _state = State::PowerOn;
 
     RegisterConfig _registers[6];
     SensorStatus _sensor_status;

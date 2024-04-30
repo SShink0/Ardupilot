@@ -16,6 +16,8 @@
 #include <AP_Math/AP_Math.h>
 
 #include "AP_InertialSensor_SCH16T.h"
+#include <GCS_MAVLink/GCS.h>
+#include <hal.h>
 
 static constexpr uint32_t SPI_SPEED = 2 * 1000 * 1000;  // 2 MHz SPI serial interface
 static constexpr uint32_t SAMPLE_INTERVAL_US = 678;     // 1500 Hz -- decimation factor 8, F_PRIM/16, 1.475 kHz
@@ -85,12 +87,10 @@ extern const AP_HAL::HAL& hal;
 
 AP_InertialSensor_SCH16T::AP_InertialSensor_SCH16T(AP_InertialSensor &imu,
                                                          AP_HAL::OwnPtr<AP_HAL::Device> _dev,
-                                                         enum Rotation _rotation,
-                                                         uint8_t drdy_gpio)
+                                                         enum Rotation _rotation)
     : AP_InertialSensor_Backend(imu)
     , dev(std::move(_dev))
     , rotation(_rotation)
-    , drdy_pin(drdy_gpio)
 {
     expected_sample_rate_hz = 1475;
     accel_scale = radians(1.f / 1600.f);
@@ -107,13 +107,13 @@ AP_InertialSensor_SCH16T::AP_InertialSensor_SCH16T(AP_InertialSensor &imu,
 AP_InertialSensor_Backend *
 AP_InertialSensor_SCH16T::probe(AP_InertialSensor &imu,
                                    AP_HAL::OwnPtr<AP_HAL::Device> dev,
-                                   enum Rotation rotation,
-                                   uint8_t drdy_gpio)
+                                   enum Rotation rotation)
 {
     if (!dev) {
         return nullptr;
     }
-    auto sensor = new AP_InertialSensor_SCH16T(imu, std::move(dev), rotation, drdy_gpio);
+
+    auto sensor = new AP_InertialSensor_SCH16T(imu, std::move(dev), rotation);
 
     if (!sensor) {
         return nullptr;
@@ -151,30 +151,49 @@ bool AP_InertialSensor_SCH16T::init()
 
     dev->set_speed(AP_HAL::Device::SPEED_LOW);
 
-    if (!read_product_id()) {
-        hal.console->printf("reading product ID failed");
-        return false;
-    }
-
-    configure_registers();
+    // if (!read_product_id()) {
+    //     hal.console->printf("reading product ID failed");
+    //     GCS_SEND_TEXT(MAV_SEVERITY_INFO, "reading product ID failed");
+    //     return false;
+    // }
 
     return true;
 }
 
 void AP_InertialSensor_SCH16T::run_state_machine()
 {
+    WITH_SEMAPHORE(dev->get_semaphore());
+
     switch (_state) {
+    case State::PowerOn: {
+            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "PowerOn");
+            _state = State::Reset;
+            dev->adjust_periodic_callback(periodic_handle, POWER_ON_TIME);
+            break;
+        }
+
     case State::Reset: {
+            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Reset");
             failure_count = 0;
-            hal.console->printf("Resetting (soft)");
-            register_write(CTRL_RESET, SPI_SOFT_RESET);
+            // hal.console->printf("Resetting (soft)");
+            // // register_write(CTRL_RESET, SPI_SOFT_RESET);
+            palClearLine(HAL_nSPI6_RESET_EXTERNAL1);
+            hal.scheduler->delay(2000);
+            palSetLine(HAL_nSPI6_RESET_EXTERNAL1);
+
             _state = State::Configure;
             dev->adjust_periodic_callback(periodic_handle, POWER_ON_TIME);
             break;
         }
 
-
     case State::Configure: {
+            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Configure");
+            if (!read_product_id()) {
+                GCS_SEND_TEXT(MAV_SEVERITY_INFO, "reading product ID failed");
+                dev->adjust_periodic_callback(periodic_handle, POWER_ON_TIME*10);
+                break;
+            }
+
             configure_registers();
             _state = State::LockConfiguration;
             dev->adjust_periodic_callback(periodic_handle, POWER_ON_TIME);
@@ -182,6 +201,7 @@ void AP_InertialSensor_SCH16T::run_state_machine()
         }
 
     case State::LockConfiguration: {
+            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "LockConfiguration");
             hal.console->printf("locking configuration");
             read_status_registers(); // Read all status registers once
             register_write(CTRL_MODE, (EOI | EN_SENSOR)); // Write EOI and EN_SENSOR
@@ -192,6 +212,7 @@ void AP_InertialSensor_SCH16T::run_state_machine()
         }
 
     case State::Validate: {
+            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Validate");
             read_status_registers(); // Read all status registers twice
             read_status_registers();
 
@@ -315,11 +336,11 @@ bool AP_InertialSensor_SCH16T::read_product_id()
     uint16_t sn_id3 = SPI48_DATA_UINT16(register_read(SN_ID3));
 
     char serial_str[14];
-    hal.console->printf(serial_str, 14, "%05d%01X%04X", sn_id2, sn_id1 & 0x000F, sn_id3);
 
-    hal.console->printf("Serial:\t %s", serial_str);
-    hal.console->printf("COMP_ID:\t 0x%0x", comp_id);
-    hal.console->printf("ASIC_ID:\t 0x%0x", asic_id);
+    GCS_SEND_TEXT(MAV_SEVERITY_INFO, serial_str, 14, "%05d%01X%04X", sn_id2, sn_id1 & 0x000F, sn_id3);
+    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Serial:\t %s", serial_str);
+    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "COMP_ID:\t 0x%0x", comp_id);
+    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "ASIC_ID:\t 0x%0x", asic_id);
 
     // SCH16T-K01   -   ID hex = 0x0020
     // SCH1633-B13  -   ID hex = 0x0017
