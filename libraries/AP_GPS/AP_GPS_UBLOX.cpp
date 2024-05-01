@@ -458,68 +458,14 @@ AP_GPS_UBLOX::_request_next_config(void)
         break;
 
     case STEP_F9: {
-        if (_hardware_generation == UBLOX_F9 && params.gnss_mode != 0) {
-
-            uint8_t cfg_count = 0;
-
-            // ZED-F9P defaults are
-            // GPS L1C/A+L2C(ZED)
-            // SBAS L1C/A
-            // GALILEO E1+E5B(ZED)+E5A(NEO)
-            // BEIDOU B1+B2(ZED)+B2A(NEO)
-            // QZSS L1C/A+L2C(ZED)+L5(NEO)
-            // GLONASS L1+L2(ZED)
-            // IMES not supported
-            // GPS and QZSS should be enabled/disabled together, but we will leave them alone
-
-            uint8_t gnss_mode = params.gnss_mode;
-            gnss_mode |= 1U<<GNSS_GPS;
-            gnss_mode |= 1U<<GNSS_QZSS;
-            gnss_mode &= ~(1U<<GNSS_IMES);
-            params.gnss_mode.set_and_save(gnss_mode);
-
-            for(int i = 0; i < UBLOX_MAX_GNSS_CONFIG_BLOCKS; i++) {
-                bool ena = gnss_mode & (1U<<i);
-                switch (i) {
-                case GNSS_SBAS:
-                    config_GNSS[cfg_count++] = { ConfigKey::CFG_SIGNAL_SBAS_ENA, ena };
-                    // If a constellation is disabled, the signals get disabled as well
-                    if (ena) {
-                        config_GNSS[cfg_count++] = { ConfigKey::CFG_SIGNAL_SBAS_L1CA_ENA, ena };
-                    }
-                    break;
-                case GNSS_GALILEO:
-                    config_GNSS[cfg_count++] = { ConfigKey::CFG_SIGNAL_GAL_ENA, ena };
-                    if (ena) {
-                        config_GNSS[cfg_count++] = { ConfigKey::CFG_SIGNAL_GAL_E1_ENA, ena };
-                        config_GNSS[cfg_count++] = { ConfigKey::CFG_SIGNAL_GAL_E5B_ENA, ena };
-                    }
-                    break;
-                case GNSS_BEIDOU:
-                    config_GNSS[cfg_count++] = { ConfigKey::CFG_SIGNAL_BDS_ENA, ena };
-                    if (ena) {
-                        config_GNSS[cfg_count++] = { ConfigKey::CFG_SIGNAL_BDS_B1_ENA, ena };
-                        config_GNSS[cfg_count++] = { ConfigKey::CFG_SIGNAL_BDS_B2_ENA, ena };
-                    }
-                    break;
-                case GNSS_GLONASS:
-                    config_GNSS[cfg_count++] = { ConfigKey::CFG_SIGNAL_GLO_ENA, ena };
-                    if (ena) {
-                        config_GNSS[cfg_count++] = { ConfigKey::CFG_SIGNAL_GLO_L1_ENA, ena };
-                        config_GNSS[cfg_count++] = { ConfigKey::CFG_SIGNAL_GLO_L2_ENA, ena };
-                    }
-                    break;
-                case GNSS_IMES:
-                case GNSS_GPS:
-                case GNSS_QZSS:
-                    // not supported or leave alone
-                    break;
-                }
-            }
+        if (_hardware_generation == UBLOX_F9) {
+            uint8_t cfg_count = populate_F9_gnss();
             // special handling of F9 config
-            CFG_Debug("Sending F9 settings");
-            if (!_configure_config_set(config_GNSS, cfg_count, CONFIG_F9, UBX_VALSET_LAYER_RAM | UBX_VALSET_LAYER_BBR)) {
-                _next_message--;
+            if (cfg_count > 0) {
+                CFG_Debug("Sending F9 settings");
+                if (!_configure_config_set(config_GNSS, cfg_count, CONFIG_F9, UBX_VALSET_LAYER_RAM | UBX_VALSET_LAYER_BBR)) {
+                    _next_message--;
+                }
             }
         }
         break;
@@ -1424,8 +1370,14 @@ AP_GPS_UBLOX::_parse_gps(void)
             _have_version = true;
             strncpy(_version.hwVersion, _buffer.mon_ver.hwVersion, sizeof(_version.hwVersion));
             strncpy(_version.swVersion, _buffer.mon_ver.swVersion, sizeof(_version.swVersion));
+            void* mod = memmem(_buffer.mon_ver.extension, sizeof(_buffer.mon_ver.extension), "MOD=", 4);
+            if (mod != nullptr) {
+                strncpy(_module, (char*)mod+4, UBLOX_MODULE_LEN-1);
+            }
+
             GCS_SEND_TEXT(MAV_SEVERITY_INFO, 
-                                             "u-blox %d HW: %s SW: %s",
+                                             "u-blox %s %d HW: %s SW: %s",
+                                             _module,
                                              state.instance + 1,
                                              _version.hwVersion,
                                              _version.swVersion);
@@ -1441,6 +1393,11 @@ AP_GPS_UBLOX::_parse_gps(void)
                     _hardware_generation = UBLOX_F9;
                     _unconfigured_messages |= CONFIG_F9;
                     _unconfigured_messages &= ~CONFIG_GNSS;
+                    if (strncmp(_module, "ZED-F9P", UBLOX_MODULE_LEN) == 0) {
+                        _hardware_variant = UBLOX_F9_ZED;
+                    } else if (strncmp(_module, "NEO-F9P", UBLOX_MODULE_LEN) == 0) {
+                        _hardware_variant = UBLOX_F9_NEO;
+                    }
                 }
                 if (strncmp(_version.swVersion, "EXT CORE 4", 10) == 0) {
                     // a M9
@@ -2258,6 +2215,82 @@ bool AP_GPS_UBLOX::is_healthy(void) const
     }
 #endif
     return true;
+}
+
+// populate config_GNSS with F9 GNSS configuration
+uint8_t AP_GPS_UBLOX::populate_F9_gnss(void)
+{
+    uint8_t cfg_count = 0;
+    if (params.gnss_mode != 0) {
+
+        // ZED-F9P defaults are
+        // GPS L1C/A+L2C(ZED)
+        // SBAS L1C/A
+        // GALILEO E1+E5B(ZED)+E5A(NEO)
+        // BEIDOU B1+B2(ZED)+B2A(NEO)
+        // QZSS L1C/A+L2C(ZED)+L5(NEO)
+        // GLONASS L1+L2(ZED)
+        // IMES not supported
+        // GPS and QZSS should be enabled/disabled together, but we will leave them alone
+        // QZSS and SBAS can only be enabled if GPS is enabled
+
+        uint8_t gnss_mode = params.gnss_mode;
+        gnss_mode |= 1U<<GNSS_GPS;
+        gnss_mode |= 1U<<GNSS_QZSS;
+        gnss_mode &= ~(1U<<GNSS_IMES);
+        params.gnss_mode.set_and_save(gnss_mode);
+
+        for(int i = 0; i < UBLOX_MAX_GNSS_CONFIG_BLOCKS; i++) {
+            bool ena = gnss_mode & (1U<<i);
+            switch (i) {
+            case GNSS_SBAS:
+                config_GNSS[cfg_count++] = { ConfigKey::CFG_SIGNAL_SBAS_ENA, ena };
+                // If a constellation is disabled, the signals get disabled as well
+                if (ena) {
+                    config_GNSS[cfg_count++] = { ConfigKey::CFG_SIGNAL_SBAS_L1CA_ENA, ena };
+                }
+                break;
+            case GNSS_GALILEO:
+                config_GNSS[cfg_count++] = { ConfigKey::CFG_SIGNAL_GAL_ENA, ena };
+                if (ena) {
+                    config_GNSS[cfg_count++] = { ConfigKey::CFG_SIGNAL_GAL_E1_ENA, ena };
+                    if (_hardware_variant == UBLOX_F9_ZED) {
+                        config_GNSS[cfg_count++] = { ConfigKey::CFG_SIGNAL_GAL_E5B_ENA, ena };
+                    } else {
+                        config_GNSS[cfg_count++] = { ConfigKey::CFG_SIGNAL_GAL_E5A_ENA, ena };
+                    }
+                }
+                break;
+            case GNSS_BEIDOU:
+                config_GNSS[cfg_count++] = { ConfigKey::CFG_SIGNAL_BDS_ENA, ena };
+                if (ena) {
+                    config_GNSS[cfg_count++] = { ConfigKey::CFG_SIGNAL_BDS_B1_ENA, ena };
+                    if (_hardware_variant == UBLOX_F9_ZED) {
+                        config_GNSS[cfg_count++] = { ConfigKey::CFG_SIGNAL_BDS_B2_ENA, ena };
+                    } else {
+                        config_GNSS[cfg_count++] = { ConfigKey::CFG_SIGNAL_BDS_B2A_ENA, ena };
+                    }
+                }
+                break;
+            case GNSS_GLONASS:
+                config_GNSS[cfg_count++] = { ConfigKey::CFG_SIGNAL_GLO_ENA, ena };
+                if (ena) {
+                    config_GNSS[cfg_count++] = { ConfigKey::CFG_SIGNAL_GLO_L1_ENA, ena };
+                    if (_hardware_variant == UBLOX_F9_ZED) {
+                        config_GNSS[cfg_count++] = { ConfigKey::CFG_SIGNAL_GLO_L2_ENA, ena };
+                    }
+                }
+                break;
+            case GNSS_IMES:
+            case GNSS_GPS:
+            case GNSS_QZSS:
+                // not supported or leave alone
+                break;
+            }
+        }
+    }
+
+    return cfg_count;
 }
 
 // return true if GPS is capable of F9 config

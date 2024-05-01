@@ -58,6 +58,7 @@
 #define UBLOX_RXM_RAW_LOGGING 1
 #define UBLOX_MAX_RXM_RAW_SATS 22
 #define UBLOX_MAX_RXM_RAWX_SATS 32
+#define UBLOX_MAX_EXTENSIONS 8
 #define UBLOX_GNSS_SETTINGS 1
 #ifndef UBLOX_TIM_TM2_LOGGING
     #define UBLOX_TIM_TM2_LOGGING (BOARD_FLASH_SIZE>1024)
@@ -68,6 +69,7 @@
 #define UBX_TIMEGPS_VALID_WEEK_MASK 0x2
 
 #define UBLOX_MAX_PORTS 6
+#define UBLOX_MODULE_LEN 9
 
 #define RATE_POSLLH 1
 #define RATE_STATUS 1
@@ -519,7 +521,7 @@ private:
     struct PACKED ubx_mon_ver {
         char swVersion[30];
         char hwVersion[10];
-        char extension[50]; // extensions are not enabled
+        char extension[30*UBLOX_MAX_EXTENSIONS]; // extensions are not enabled
     };
     struct PACKED ubx_nav_svinfo_header {
         uint32_t itow;
@@ -720,6 +722,12 @@ private:
                                                  // flagging state in the driver
     };
 
+    enum ubx_hardware_variant {
+        UBLOX_F9_ZED, // comes from MON_VER extension strings
+        UBLOX_F9_NEO, // comes from MON_VER extension strings
+        UBLOX_UNKNOWN_HARDWARE_VARIANT = 0xff
+    };
+
     enum config_step {
         STEP_PVT = 0,
         STEP_NAV_RATE, // poll NAV rate
@@ -772,8 +780,10 @@ private:
     uint8_t         _ublox_port;
     bool            _have_version;
     struct ubx_mon_ver _version;
+    char            _module[UBLOX_MODULE_LEN];
     uint32_t        _unconfigured_messages;
     uint8_t         _hardware_generation;
+    uint8_t         _hardware_variant;
     uint32_t        _last_pvt_itow;
     uint32_t        _last_relposned_itow;
     uint32_t        _last_relposned_ms;
@@ -850,6 +860,9 @@ private:
 
     // return true if GPS is capable of F9 config
     bool supports_F9_config(void) const;
+
+    // populate config_GNSS for F9P
+    uint8_t populate_F9_gnss(void);
 
     uint8_t _pps_freq = 1;
 #ifdef HAL_GPIO_PPS
