@@ -16,8 +16,11 @@
 #include <AP_Math/AP_Math.h>
 
 #include "AP_InertialSensor_SCH16T.h"
-#include <GCS_MAVLink/GCS.h>
+// #include <GCS_MAVLink/GCS.h>
+
+#if defined(HAL_GPIO_PIN_nSPI6_RESET_EXTERNAL1)
 #include <hal.h>
+#endif
 
 static constexpr uint32_t SPI_SPEED = 2 * 1000 * 1000;  // 2 MHz SPI serial interface
 static constexpr uint32_t SAMPLE_INTERVAL_US = 678;     // 1500 Hz -- decimation factor 8, F_PRIM/16, 1.475 kHz
@@ -149,21 +152,15 @@ void AP_InertialSensor_SCH16T::run_state_machine()
         }
 
     case State::Reset: {
-            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "resetting");
             failure_count = 0;
-            register_write(CTRL_RESET, SPI_SOFT_RESET);
-            // palClearLine(HAL_nSPI6_RESET_EXTERNAL1);
-            // hal.scheduler->delay(2000);
-            // palSetLine(HAL_nSPI6_RESET_EXTERNAL1);
-
+            reset_chip();
             _state = State::Configure;
-            dev->adjust_periodic_callback(periodic_handle, 20000); // soft reset 20ms
+            dev->adjust_periodic_callback(periodic_handle, POWER_ON_TIME);
             break;
         }
 
     case State::Configure: {
             if (!read_product_id()) {
-                GCS_SEND_TEXT(MAV_SEVERITY_INFO, "reading product ID failed");
                 _state = State::Reset;
                 dev->adjust_periodic_callback(periodic_handle, 2000000); // 2s
                 break;
@@ -178,7 +175,6 @@ void AP_InertialSensor_SCH16T::run_state_machine()
     case State::LockConfiguration: {
             read_status_registers(); // Read all status registers once
             register_write(CTRL_MODE, (EOI | EN_SENSOR)); // Write EOI and EN_SENSOR
-
             _state = State::Validate;
             dev->adjust_periodic_callback(periodic_handle, 50000UL); // 50ms
             break;
@@ -195,38 +191,17 @@ void AP_InertialSensor_SCH16T::run_state_machine()
 
             } else {
                 _state = State::Reset;
-                dev->adjust_periodic_callback(periodic_handle, 100000UL); // 100ms
+                dev->adjust_periodic_callback(periodic_handle, POWER_ON_TIME);
             }
 
             break;
         }
 
     case State::Read: {
-            // Collect the data
-            SensorData data = {};
-
-            // if (wait_ok && read_data(&data)) {
-            if (read_data(&data)) {
-
-                Vector3f accel{accel_scale*data.acc_x, accel_scale*data.acc_y, accel_scale*data.acc_z};
-                Vector3f gyro{gyro_scale*data.gyro_x, gyro_scale*data.gyro_y, gyro_scale*data.gyro_z};
-
-                _rotate_and_correct_accel(accel_instance, accel);
-                _notify_new_accel_raw_sample(accel_instance, accel);
-
-                _rotate_and_correct_gyro(gyro_instance, gyro);
-                _notify_new_gyro_raw_sample(gyro_instance, gyro);
-
-                _publish_temperature(accel_instance, float(data.temp)/100.f);
-
-                // NOTE: taken from other IMU drivers
-                // adjust the periodic callback to be synchronous with the incoming data
-                dev->adjust_periodic_callback(periodic_handle, 1000000UL / expected_sample_rate_hz);
-
+            if (collect_and_publish()) {
                 if (failure_count > 0) {
                     failure_count--;
                 }
-
             } else {
                 failure_count++;
             }
@@ -243,6 +218,40 @@ void AP_InertialSensor_SCH16T::run_state_machine()
     default:
         break;
     } // end switch/case
+}
+
+bool AP_InertialSensor_SCH16T::collect_and_publish()
+{
+    SensorData data = {};
+    bool success = read_data(&data);
+    if (success) {
+        Vector3f accel{accel_scale*data.acc_x, accel_scale*data.acc_y, accel_scale*data.acc_z};
+        Vector3f gyro{gyro_scale*data.gyro_x, gyro_scale*data.gyro_y, gyro_scale*data.gyro_z};
+
+        _rotate_and_correct_accel(accel_instance, accel);
+        _notify_new_accel_raw_sample(accel_instance, accel);
+
+        _rotate_and_correct_gyro(gyro_instance, gyro);
+        _notify_new_gyro_raw_sample(gyro_instance, gyro);
+
+        _publish_temperature(accel_instance, float(data.temp)/100.f);
+
+        // adjust the periodic callback to be synchronous with the incoming data
+        dev->adjust_periodic_callback(periodic_handle, 1000000UL / expected_sample_rate_hz);
+    }
+
+    return success;
+}
+
+void AP_InertialSensor_SCH16T::reset_chip()
+{
+#if defined(HAL_GPIO_PIN_nSPI6_RESET_EXTERNAL1)
+    palClearLine(HAL_GPIO_PIN_nSPI6_RESET_EXTERNAL1);
+    hal.scheduler->delay(2000);
+    palSetLine(HAL_GPIO_PIN_nSPI6_RESET_EXTERNAL1);
+#else
+    register_write(CTRL_RESET, SPI_SOFT_RESET);
+#endif
 }
 
 bool AP_InertialSensor_SCH16T::read_data(SensorData *data)
@@ -298,17 +307,17 @@ bool AP_InertialSensor_SCH16T::read_product_id()
     uint16_t comp_id = SPI48_DATA_UINT16(register_read(ASIC_ID));
     uint16_t asic_id = SPI48_DATA_UINT16(register_read(ASIC_ID));
 
-    register_read(SN_ID1);
-    uint16_t sn_id1 = SPI48_DATA_UINT16(register_read(SN_ID2));
-    uint16_t sn_id2 = SPI48_DATA_UINT16(register_read(SN_ID3));
-    uint16_t sn_id3 = SPI48_DATA_UINT16(register_read(SN_ID3));
+    // Debug code
+    // register_read(SN_ID1);
+    // uint16_t sn_id1 = SPI48_DATA_UINT16(register_read(SN_ID2));
+    // uint16_t sn_id2 = SPI48_DATA_UINT16(register_read(SN_ID3));
+    // uint16_t sn_id3 = SPI48_DATA_UINT16(register_read(SN_ID3));
 
-    char serial_str[14];
-
-    GCS_SEND_TEXT(MAV_SEVERITY_INFO, serial_str, 14, "%05d%01X%04X", sn_id2, sn_id1 & 0x000F, sn_id3);
-    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Serial:\t %s", serial_str);
-    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "COMP_ID:\t 0x%0x", comp_id);
-    GCS_SEND_TEXT(MAV_SEVERITY_INFO, "ASIC_ID:\t 0x%0x", asic_id);
+    // char serial_str[14];
+    // GCS_SEND_TEXT(MAV_SEVERITY_INFO, serial_str, 14, "%05d%01X%04X", sn_id2, sn_id1 & 0x000F, sn_id3);
+    // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Serial:\t %s", serial_str);
+    // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "COMP_ID:\t 0x%0x", comp_id);
+    // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "ASIC_ID:\t 0x%0x", asic_id);
 
     // SCH16T-K01   -   ID hex = 0x0020
     // SCH1633-B13  -   ID hex = 0x0017
@@ -319,7 +328,6 @@ bool AP_InertialSensor_SCH16T::read_product_id()
 
 void AP_InertialSensor_SCH16T::configure_registers()
 {
-
     for (auto &r : _registers) {
         register_write(r.addr, r.value);
     }
@@ -401,7 +409,6 @@ void AP_InertialSensor_SCH16T::register_write(uint8_t addr, uint16_t value)
 uint64_t AP_InertialSensor_SCH16T::transfer_spi_frame(uint64_t frame)
 {
     uint16_t buf[3];
-
     for (int index = 0; index < 3; index++) {
         uint16_t lower_byte = (frame >> (index << 4)) & 0xFF;
         uint16_t upper_byte = (frame >> ((index << 4) + 8)) & 0xFF;
@@ -409,11 +416,8 @@ uint64_t AP_InertialSensor_SCH16T::transfer_spi_frame(uint64_t frame)
     }
 
     dev->transfer((uint8_t*)buf, 6, (uint8_t*)buf, 6);
-    // dev->transfer((uint8_t*)tx, 6, nullptr, 0);
-    // dev->transfer(nullptr, 0, (uint8_t*)rx, 6);
 
     uint64_t value = {};
-
     for (int index = 0; index < 3; index++) {
         uint16_t lower_byte = buf[index] & 0xFF;
         uint16_t upper_byte = (buf[index] >> 8) & 0xFF;

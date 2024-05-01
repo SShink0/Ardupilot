@@ -72,7 +72,9 @@ private:
     };
 
     void run_state_machine(void);
+    bool collect_and_publish();
 
+    void reset_chip();
     bool read_product_id();
     void read_status_registers();
     bool validate_sensor_status();
