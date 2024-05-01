@@ -248,6 +248,7 @@ bool Copter::gcs_mode_enabled(const Mode::Number mode_num)
 // optional force parameter used to force the flight mode change (used only first time mode is set)
 // returns true if mode was successfully set
 // ACRO, STABILIZE, ALTHOLD, LAND, DRIFT and SPORT can always be set successfully but the return state of other flight modes should be checked and the caller should deal with failures appropriately
+
 bool Copter::set_mode(Mode::Number mode, ModeReason reason)
 {
     // update last reason

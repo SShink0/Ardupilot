@@ -2,7 +2,8 @@
 
 enum class ServiceIndex: uint8_t {
     ARMING_MOTORS,
-    MODE_SWITCH
+    MODE_SWITCH,
+    TAKEOFF
 };
 
 static inline constexpr uint8_t to_underlying(const ServiceIndex index)
@@ -23,5 +24,11 @@ constexpr struct AP_DDS_Client::Service_table AP_DDS_Client::services[] = {
         .rep_id = to_underlying(ServiceIndex::MODE_SWITCH),
         .req_profile_label = "",
         .rep_profile_label = "mode_switch__replier",
+    },
+    {
+        .req_id = to_underlying(ServiceIndex::TAKEOFF),
+        .rep_id = to_underlying(ServiceIndex::TAKEOFF),
+        .req_profile_label = "",
+        .rep_profile_label = "takeoff__replier",
     },
 };
