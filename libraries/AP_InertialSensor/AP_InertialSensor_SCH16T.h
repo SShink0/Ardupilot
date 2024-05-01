@@ -71,7 +71,6 @@ private:
         uint16_t value;
     };
 
-    bool init();
     void run_state_machine(void);
 
     bool read_product_id();

@@ -93,7 +93,7 @@ AP_InertialSensor_SCH16T::AP_InertialSensor_SCH16T(AP_InertialSensor &imu,
     , rotation(_rotation)
 {
     expected_sample_rate_hz = 1475;
-    accel_scale = radians(1.f / 1600.f);
+    accel_scale = 1.f / 1600.f;
     gyro_scale = radians(1.f / 1600.f);
 
     _registers[0] = RegisterConfig(CTRL_FILT_RATE,  FILTER_68HZ);        // 68Hz -- default
@@ -119,17 +119,11 @@ AP_InertialSensor_SCH16T::probe(AP_InertialSensor &imu,
         return nullptr;
     }
 
-    if (!sensor->init()) {
-        delete sensor;
-        return nullptr;
-    }
-
     return sensor;
 }
 
 void AP_InertialSensor_SCH16T::start()
 {
-    hal.console->printf("AP_InertialSensor_SCH16T::start()");
     if (!_imu.register_accel(accel_instance, expected_sample_rate_hz, dev->get_bus_id_devtype(DEVTYPE_INS_SCH16T)) ||
         !_imu.register_gyro(gyro_instance, expected_sample_rate_hz,   dev->get_bus_id_devtype(DEVTYPE_INS_SCH16T))) {
         return;
@@ -143,54 +137,35 @@ void AP_InertialSensor_SCH16T::start()
     periodic_handle = dev->register_periodic_callback(period_us, FUNCTOR_BIND_MEMBER(&AP_InertialSensor_SCH16T::run_state_machine, void));
 }
 
-
-bool AP_InertialSensor_SCH16T::init()
-{
-    hal.console->printf("AP_InertialSensor_SCH16T::init()");
-    WITH_SEMAPHORE(dev->get_semaphore());
-
-    dev->set_speed(AP_HAL::Device::SPEED_LOW);
-
-    // if (!read_product_id()) {
-    //     hal.console->printf("reading product ID failed");
-    //     GCS_SEND_TEXT(MAV_SEVERITY_INFO, "reading product ID failed");
-    //     return false;
-    // }
-
-    return true;
-}
-
 void AP_InertialSensor_SCH16T::run_state_machine()
 {
     WITH_SEMAPHORE(dev->get_semaphore());
 
     switch (_state) {
     case State::PowerOn: {
-            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "PowerOn");
             _state = State::Reset;
             dev->adjust_periodic_callback(periodic_handle, POWER_ON_TIME);
             break;
         }
 
     case State::Reset: {
-            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Reset");
+            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "resetting");
             failure_count = 0;
-            // hal.console->printf("Resetting (soft)");
-            // // register_write(CTRL_RESET, SPI_SOFT_RESET);
-            palClearLine(HAL_nSPI6_RESET_EXTERNAL1);
-            hal.scheduler->delay(2000);
-            palSetLine(HAL_nSPI6_RESET_EXTERNAL1);
+            register_write(CTRL_RESET, SPI_SOFT_RESET);
+            // palClearLine(HAL_nSPI6_RESET_EXTERNAL1);
+            // hal.scheduler->delay(2000);
+            // palSetLine(HAL_nSPI6_RESET_EXTERNAL1);
 
             _state = State::Configure;
-            dev->adjust_periodic_callback(periodic_handle, POWER_ON_TIME);
+            dev->adjust_periodic_callback(periodic_handle, 20000); // soft reset 20ms
             break;
         }
 
     case State::Configure: {
-            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Configure");
             if (!read_product_id()) {
                 GCS_SEND_TEXT(MAV_SEVERITY_INFO, "reading product ID failed");
-                dev->adjust_periodic_callback(periodic_handle, POWER_ON_TIME*10);
+                _state = State::Reset;
+                dev->adjust_periodic_callback(periodic_handle, 2000000); // 2s
                 break;
             }
 
@@ -201,8 +176,6 @@ void AP_InertialSensor_SCH16T::run_state_machine()
         }
 
     case State::LockConfiguration: {
-            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "LockConfiguration");
-            hal.console->printf("locking configuration");
             read_status_registers(); // Read all status registers once
             register_write(CTRL_MODE, (EOI | EN_SENSOR)); // Write EOI and EN_SENSOR
 
@@ -212,19 +185,15 @@ void AP_InertialSensor_SCH16T::run_state_machine()
         }
 
     case State::Validate: {
-            GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Validate");
             read_status_registers(); // Read all status registers twice
             read_status_registers();
 
             // Check that registers are configured properly and that the sensor status is OK
             if (validate_sensor_status() && validate_register_configuration()) {
-                hal.console->printf("Starting read loop");
                 _state = State::Read;
                 dev->adjust_periodic_callback(periodic_handle, 1000000UL / expected_sample_rate_hz);
-                dev->set_speed(AP_HAL::Device::SPEED_HIGH);
 
             } else {
-                hal.console->printf("Sensor or Register validation failed, resetting");
                 _state = State::Reset;
                 dev->adjust_periodic_callback(periodic_handle, 100000UL); // 100ms
             }
@@ -264,7 +233,6 @@ void AP_InertialSensor_SCH16T::run_state_machine()
 
             // Reset if successive failures
             if (failure_count > 10) {
-                hal.console->printf("Failure count high, resetting");
                 _state = State::Reset;
                 return;
             }
@@ -344,14 +312,13 @@ bool AP_InertialSensor_SCH16T::read_product_id()
 
     // SCH16T-K01   -   ID hex = 0x0020
     // SCH1633-B13  -   ID hex = 0x0017
-    bool fail = asic_id == 0 || comp_id == 0;
+    bool success = asic_id == 0x20 && comp_id == 0x17;
 
-    return fail;
+    return success;
 }
 
 void AP_InertialSensor_SCH16T::configure_registers()
 {
-    hal.console->printf("AP_InertialSensor_SCH16T::configure_registers()");
 
     for (auto &r : _registers) {
         register_write(r.addr, r.value);
@@ -368,7 +335,6 @@ bool AP_InertialSensor_SCH16T::validate_sensor_status()
 
     for (auto v : values) {
         if (v != 0xFFFF) {
-            hal.console->printf("Sensor status failed");
             return false;
         }
     }
@@ -385,7 +351,6 @@ bool AP_InertialSensor_SCH16T::validate_register_configuration()
         auto value = SPI48_DATA_UINT16(register_read(r.addr));
 
         if (value != r.value) {
-            hal.console->printf("Register 0x%0x misconfigured: 0x%0x", r.addr, value);
             success = false;
         }
     }
@@ -435,19 +400,24 @@ void AP_InertialSensor_SCH16T::register_write(uint8_t addr, uint16_t value)
 // The SPI protocol (SafeSPI) is 48bit out-of-frame. This means read return frames will be received on the next transfer.
 uint64_t AP_InertialSensor_SCH16T::transfer_spi_frame(uint64_t frame)
 {
-    uint16_t tx[3];
-    uint16_t rx[3];
+    uint16_t buf[3];
 
     for (int index = 0; index < 3; index++) {
-        tx[3 - index - 1] = (frame >> (index << 4)) & 0xFFFF;
+        uint16_t lower_byte = (frame >> (index << 4)) & 0xFF;
+        uint16_t upper_byte = (frame >> ((index << 4) + 8)) & 0xFF;
+        buf[3 - index - 1] = (lower_byte << 8) | upper_byte;
     }
 
-    dev->transfer((uint8_t*)tx, sizeof(tx), (uint8_t*)rx, sizeof(rx));
+    dev->transfer((uint8_t*)buf, 6, (uint8_t*)buf, 6);
+    // dev->transfer((uint8_t*)tx, 6, nullptr, 0);
+    // dev->transfer(nullptr, 0, (uint8_t*)rx, 6);
 
     uint64_t value = {};
 
     for (int index = 0; index < 3; index++) {
-        value |= (uint64_t)rx[index] << ((3 - index - 1) << 4);
+        uint16_t lower_byte = buf[index] & 0xFF;
+        uint16_t upper_byte = (buf[index] >> 8) & 0xFF;
+        value |= (uint64_t)(upper_byte | (lower_byte << 8)) << ((3 - index - 1) << 4);
     }
 
     return value;
