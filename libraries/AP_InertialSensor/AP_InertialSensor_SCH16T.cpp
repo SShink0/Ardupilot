@@ -22,8 +22,6 @@
 #include <hal.h>
 #endif
 
-static constexpr uint32_t SPI_SPEED = 2 * 1000 * 1000;  // 2 MHz SPI serial interface
-static constexpr uint32_t SAMPLE_INTERVAL_US = 678;     // 1500 Hz -- decimation factor 8, F_PRIM/16, 1.475 kHz
 static constexpr uint16_t EOI = (1 << 1);               // End of Initialization
 static constexpr uint16_t EN_SENSOR = (1 << 0);         // Enable RATE and ACC measurement
 static constexpr uint16_t DRY_DRV_EN = (1 << 5);        // Enables Data ready function
