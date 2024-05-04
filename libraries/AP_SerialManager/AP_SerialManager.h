@@ -85,6 +85,11 @@ public:
         SerialProtocol_IMUOUT = 46,
         // Reserving Serial Protocol 47 for SerialProtocol_IQ
         SerialProtocol_PPP = 48,
+        SerialProtocol_HobbyWing = 49,
+        SerialProtocol_HobbyWing_DataLink = 50,
+        SerialProtocol_HobbyWing_PlatinumProV3 = 51,
+        SerialProtocol_HobbyWing_PlatinumV4 = 52,
+        SerialProtocol_HobbyWing_XRotorV4 = 53,
         SerialProtocol_NumProtocols                    // must be the last value
     };
 

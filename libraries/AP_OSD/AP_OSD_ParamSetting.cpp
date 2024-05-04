@@ -21,14 +21,16 @@
   parameter object for one setting in AP_OSD
  */
 
+#include "AP_OSD_config.h"
+
+#if OSD_PARAM_ENABLED
+
 #include "AP_OSD.h"
 #include <AP_Vehicle/AP_Vehicle_Type.h>
 #include <GCS_MAVLink/GCS.h>
 #include <SRV_Channel/SRV_Channel.h>
 #include <AP_SerialManager/AP_SerialManager.h>
 #include <ctype.h>
-
-#if OSD_PARAM_ENABLED
 
 const AP_Param::GroupInfo AP_OSD_ParamSetting::var_info[] = {
     // @Param: _EN
@@ -140,6 +142,7 @@ static const char* SERIAL_PROTOCOL_VALUES[] = {
     "NMEA", "WNDVNE", "SLCAN", "RCIN", "MGSQRT", "LTM", "RUNCAM", "HOT_TLM", "SCRIPT", "CRSF",
     "GEN", "WNCH", "MSP", "DJI", "AIRSPD", "ADSB", "AHRS", "AUDIO", "FETTEC", "TORQ",
     "AIS", "CD_ESC", "MSP_DP", "MAV_HL", "TRAMP", "DDS", "IMUOUT", "IQ", "PPP",
+    "HW", "HWDL", "HWPP3", "HWP4", "HWX4"
 };
 static_assert(AP_SerialManager::SerialProtocol_NumProtocols == ARRAY_SIZE(SERIAL_PROTOCOL_VALUES), "Wrong size SerialProtocol_NumProtocols");
 
