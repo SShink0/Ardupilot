@@ -78,7 +78,7 @@ Analog RSSI pin is "4"
 
 ## Battery Monitoring
 
-The board has a builtin voltage sensor and a current sensor input tied to its 4 in 1 ESC current sensor. The voltage sensor can handle up to 8S
+The board has a built-in voltage sensor and  current sensor. The voltage sensor can handle up to 8S
 LiPo batteries.
 
 The correct battery setting parameters are:
