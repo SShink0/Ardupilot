@@ -49,7 +49,7 @@ RC input is configured on the (UART2_RX/UART2_TX) pins which forms part of the D
 
 ## OSD Support
 
-The BLITZ Wing H743 supports OSD using OSD_TYPE 1 (MAX7456 driver).
+The BLITZ Wing H743 supports OSD using OSD_TYPE 1 (MAX7456 driver). Simultaneously, DisplayPort HD OSD is enabled by default and available on the HD VTX connector.
 
 ## PWM Output
 
