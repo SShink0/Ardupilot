@@ -17,7 +17,11 @@ The BLITZ Wing H743 is a flight controller produced by [iFlight](https://shop.if
  - Battery input voltage: 2S-8S
  - 2x I2C for external compass, airspeed, etc.
  - CAN port
-
+Physical
+======
+- Mount pattern: 30.5*30.5mm/?4
+- Dimensions: 36.9*52mm
+- Weight: 35g
 ## Pinout
 
 ![BLITZ Wing H743 Board](blitz_h7_wing_top.PNG "BLITZ Wing H743 Top")
