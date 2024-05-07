@@ -354,6 +354,9 @@ public:
     void send_rc_channels() const;
     void send_rc_channels_raw() const;
     void send_raw_imu();
+#if AP_MAVLINK_MSG_HIGHRES_IMU_ENABLED
+    void send_highres_imu();
+#endif
 
     void send_scaled_pressure_instance(uint8_t instance, void (*send_fn)(mavlink_channel_t chan, uint32_t time_boot_ms, float press_abs, float press_diff, int16_t temperature, int16_t temperature_press_diff));
     void send_scaled_pressure();
@@ -1400,3 +1403,20 @@ enum MAV_SEVERITY
 
 #endif // HAL_GCS_ENABLED
 
+#if AP_MAVLINK_MSG_HIGHRES_IMU_ENABLED
+#define HIGHRES_IMU_UPDATED_NONE 0x00
+#define HIGHRES_IMU_UPDATED_XACC 0x01
+#define HIGHRES_IMU_UPDATED_YACC 0x02
+#define HIGHRES_IMU_UPDATED_ZACC 0x04
+#define HIGHRES_IMU_UPDATED_XGYRO 0x08
+#define HIGHRES_IMU_UPDATED_YGYRO 0x10
+#define HIGHRES_IMU_UPDATED_ZGYRO 0x20
+#define HIGHRES_IMU_UPDATED_XMAG 0x40
+#define HIGHRES_IMU_UPDATED_YMAG 0x80
+#define HIGHRES_IMU_UPDATED_ZMAG 0x100
+#define HIGHRES_IMU_UPDATED_ABS_PRESSURE 0x200
+#define HIGHRES_IMU_UPDATED_DIFF_PRESSURE 0x400
+#define HIGHRES_IMU_UPDATED_PRESSURE_ALT 0x800
+#define HIGHRES_IMU_UPDATED_TEMPERATURE 0x1000
+#define HIGHRES_IMU_UPDATED_ALL 0xFFFF
+#endif
