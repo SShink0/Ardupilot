@@ -16,6 +16,7 @@ class GL2 {
     }
     GL2 operator*(const GL2& rhs) const;
     GL2 operator+(const GL2& rhs) const;
+    GL2 operator-(const GL2& rhs) const;
     Vector2F operator*(const Vector2F& rhs) const;
     GL2 inverse() const;
     GL2 transposed() const;

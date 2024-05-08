@@ -44,6 +44,14 @@ GL2 GL2::operator+(const GL2& rhs) const {
         _a22 + rhs._a22
     );
 }
+GL2 GL2::operator-(const GL2& rhs) const {
+    return GL2(
+        _a11 - rhs._a11,
+        _a12 - rhs._a12,
+        _a21 - rhs._a21,
+        _a22 - rhs._a22
+    );
+}
 
 Vector2F GL2::operator*(const Vector2F& rhs) const {
     ftype v1 = _a11*rhs.x + _a12*rhs.y;
