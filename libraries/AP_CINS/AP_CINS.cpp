@@ -83,7 +83,9 @@ void AP_CINS::update(void)
     // turn delta velocity into a accel vector
     const Vector3F accel = (delta_velocity / dvel_dt).toftype();
 
-    update_imu(gyro, accel, dangle_dt);
+    if (done_yaw_init && state.have_origin){
+        update_imu(gyro, accel, dangle_dt);
+    }
 
     // see if we have new GPS data
     const auto &gps = dal.gps();
@@ -380,7 +382,7 @@ bool AP_CINS::init_yaw(void)
     }
     ftype roll_rad, pitch_rad, yaw_rad;
     state.XHat.rot().to_euler(&roll_rad, &pitch_rad, &yaw_rad);
-    // state.XHat.rot().from_euler(roll_rad, pitch_rad, mag_yaw);
+    state.XHat.rot().from_euler(roll_rad, pitch_rad, mag_yaw);
     
     return true;
 }
