@@ -9,8 +9,6 @@
 #include <AP_Declination/AP_Declination.h>
 #include <GCS_MAVLink/GCS.h>
 
-#include <iostream>
-
 // gains tested for 5Hz GPS
 #define CINS_GAIN_GPSPOS_ATT (1.0E-4)
 #define CINS_GAIN_GPSVEL_ATT (1.0E-4)
@@ -225,9 +223,6 @@ void AP_CINS::update_imu(const Vector3F &gyro_rads, const Vector3F &accel_mss, c
         state.bias_gain_mat.pos += Matrix3F::skew_symmetric(XInv_Z.W2()) * XInv_Z.R().transposed() * dt;
     }
 
-    // DEBUG: Print the gyro bias to console
-    std::cout << "CINS Gyro Bias " << state.gyro_bias.x << ", " << state.gyro_bias.y << ", " << state.gyro_bias.z << std::endl;
-
     const Gal3F leftMat = Gal3F::exponential(zero_vector, zero_vector, gravity_vector*dt, -dt);
     const Gal3F rightMat = Gal3F::exponential((gyro_rads-state.gyro_bias)*dt, zero_vector, accel_mss*dt, dt);
     //Update XHat (Observer Dynamics)
@@ -386,9 +381,6 @@ bool AP_CINS::init_yaw(void)
     ftype roll_rad, pitch_rad, yaw_rad;
     state.XHat.rot().to_euler(&roll_rad, &pitch_rad, &yaw_rad);
     // state.XHat.rot().from_euler(roll_rad, pitch_rad, mag_yaw);
-
-    // std::cout << "Mag init RPY: " << degrees(roll_rad) << ", " << degrees(pitch_rad) << ", "  << degrees(mag_yaw) << std::endl;
-    std::cout << "No Mag init RPY: " << degrees(roll_rad) << ", " << degrees(pitch_rad) << ", "  << degrees(yaw_rad) << std::endl;
     
     return true;
 }
@@ -489,9 +481,6 @@ void AP_CINS::update_attitude_from_compass() {
     Omega_Delta += state.bias_gain_mat.rot * bias_correction;
     const Vector3F W_Delta1 = state.bias_gain_mat.pos * bias_correction;
     const Vector3F W_Delta2 = state.bias_gain_mat.vel * bias_correction;
-
-    // const Vector3F mag_diff = state.XHat.rot() * mag_vec.normalized() - mag_ref.normalized();
-    // std::cout << "Normalised Mag_err - Mag_ref: " << mag_diff.x << ", " << mag_diff.y << ", " << mag_diff.z << std::endl;
 
     Matrix3F R_Delta = Matrix3F::from_angular_velocity(Omega_Delta*dt);
 
