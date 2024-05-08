@@ -14,20 +14,17 @@
 #define CINS_GAIN_GPSVEL_ATT (1.0E-4)
 
 // Gains for new CINS method
-#define CINS_GAIN_GPSPOS_POS (1.0)
-#define CINS_GAIN_GPSVEL_VEL (1.0)
+#define CINS_GAIN_GPSPOS_POS (10.0)
+#define CINS_GAIN_GPSVEL_VEL (10.0)
 #define CINS_GAIN_MAG (5.0)
-#define CINS_GAIN_Q11 (0.05)
-#define CINS_GAIN_Q22 (0.01)
+#define CINS_GAIN_Q11 (0.01)
+#define CINS_GAIN_Q22 (0.001)
 // Gains for the Bias
 #define CINS_GAIN_POS_BIAS (1E-6)
 #define CINS_GAIN_VEL_BIAS (1E-6)
 #define CINS_GAIN_MAG_BIAS (0.05)
 #define CINS_SAT_BIAS (0.0873) // 0.0873 rad/s is 5 deg/s
 
-#define CINS_INITIAL_ROLL 0
-#define CINS_INITIAL_PITCH 0
-#define CINS_INITIAL_YAW 0
 
 Vector3F computeRotationCorrection(const Vector3F& v1, const Vector3F& v2, const ftype& gain, const ftype& dt);
 
@@ -45,10 +42,7 @@ void AP_CINS::init(void)
     state.bias_gain_mat.rot.zero();
     state.bias_gain_mat.vel.zero();
     state.bias_gain_mat.pos.zero();
-
-    state.XHat.rot().from_euler(radians(CINS_INITIAL_ROLL),radians(CINS_INITIAL_PITCH),radians(CINS_INITIAL_YAW));
 }
-
 /*
   update function, called at loop rate
  */
@@ -321,7 +315,6 @@ void AP_CINS::update_states_gps_cts(const Vector3F &pos_tru, const Vector3F &vel
     const Vector3F& vel_est = state.XHat.vel();
     const Vector3F& vel_ZInv = ZInv.W1();
 
-
     // Gamma: Correction term to apply to the auxiliary state ZHat
     const Vector2F C_pos = Vector2F(0,1); // e2 for position measurements.
     const GL2 CCT_pos = GL2(0,0,0,1.);
@@ -420,14 +413,15 @@ bool AP_CINS::get_compass_yaw(ftype &yaw_rad, ftype &dt)
         return false;
     }
 
-    const float cos_pitch_sq = 1.0f-(state.XHat.rot().c.x*state.XHat.rot().c.x);
-    const float headY = field.y * state.XHat.rot().c.z - field.z * state.XHat.rot().c.y;
+    // const float cos_pitch_sq = 1.0f-(state.XHat.rot().c.x*state.XHat.rot().c.x);
+    // const float headY = field.y * state.XHat.rot().c.z - field.z * state.XHat.rot().c.y;
 
-    // Tilt compensated magnetic field X component:
-    const float headX = field.x * cos_pitch_sq - state.XHat.rot().c.x * (field.y * state.XHat.rot().c.y + field.z * state.XHat.rot().c.z);
+    // // Tilt compensated magnetic field X component:
+    // const float headX = field.x * cos_pitch_sq - state.XHat.rot().c.x * (field.y * state.XHat.rot().c.y + field.z * state.XHat.rot().c.z);
 
     // return magnetic yaw
-    yaw_rad = wrap_PI(atan2f(-headY,headX) + radians(declination_deg));
+
+    yaw_rad = wrap_PI(-atan2f(field.y,field.x) + radians(declination_deg));
 
     return true;
 }
