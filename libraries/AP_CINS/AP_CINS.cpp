@@ -28,7 +28,41 @@
 #define CINS_GPS_DELAY (0.1) // seconds of delay
 
 
+// table of user settable parameters
+const AP_Param::GroupInfo AP_CINS::var_info[] = {
+
+    // @Param: GPATT
+    // @DisplayName: CINS GPS position attitude gain
+    // @Description: CINS GPS position attitude gain
+    // @Range: 0.0001 0.001
+    // @User: Advanced
+    AP_GROUPINFO("GPATT", 1, AP_CINS, gains.gpspos_att, CINS_GAIN_GPSPOS_ATT),
+
+    // @Param: GVATT
+    // @DisplayName: CINS GPS velocity attitude gain
+    // @Description: CINS GPS velocity attitude gain
+    // @Range: 0.0001 0.001
+    // @User: Advanced
+    AP_GROUPINFO("GVATT", 2, AP_CINS, gains.gpsvel_att, CINS_GAIN_GPSVEL_ATT),
+
+    // @Param: GPLAG
+    // @DisplayName: CINS GPS lag
+    // @Description: CINS GPS lag
+    // @Range: 0.0 0.2
+    // @User: Advanced
+    // @Units: s
+    AP_GROUPINFO("GPLAG", 3, AP_CINS, gains.gps_lag, CINS_GPS_DELAY),
+    
+    AP_GROUPEND
+};
+
 Vector3F computeRotationCorrection(const Vector3F& v1, const Vector3F& v2, const ftype& gain, const ftype& dt);
+
+// constructor
+AP_CINS::AP_CINS(void)
+{
+    AP_Param::setup_object_defaults(this, var_info);
+}
 
 
 /*
@@ -108,11 +142,11 @@ void AP_CINS::update(void)
     // Update GNSS delay buffers
     buffers.internal_time += dangle_dt;
     buffers.stamped_pos.push_front({buffers.internal_time, state.XHat.pos()});
-    while (!buffers.stamped_pos.empty() && buffers.internal_time - buffers.stamped_pos.back().first > CINS_GPS_DELAY){
+    while (!buffers.stamped_pos.empty() && buffers.internal_time - buffers.stamped_pos.back().first > gains.gps_lag){
         buffers.stamped_pos.pop_back();
     }
     buffers.stamped_vel.push_front({buffers.internal_time, state.XHat.vel()});
-    while (!buffers.stamped_pos.empty() && buffers.internal_time - buffers.stamped_vel.back().first > CINS_GPS_DELAY){
+    while (!buffers.stamped_pos.empty() && buffers.internal_time - buffers.stamped_vel.back().first > gains.gps_lag){
         buffers.stamped_vel.pop_back();
     }
 
@@ -192,8 +226,8 @@ void AP_CINS::update(void)
 void AP_CINS::update_gps(const Vector3F &pos, const Vector3F &vel, const ftype gps_dt)
 {
     // Forward the GPS to the current time
-    const Vector3F undelayed_pos = buffers.stamped_pos.empty() && CINS_GPS_DELAY > 0. ? pos : pos + state.XHat.pos() - buffers.stamped_pos.back().second;
-    const Vector3F undelayed_vel = buffers.stamped_vel.empty() && CINS_GPS_DELAY > 0. ? vel : vel + state.XHat.vel() - buffers.stamped_vel.back().second;
+    const Vector3F undelayed_pos = buffers.stamped_pos.empty() && gains.gps_lag > 0. ? pos : pos + state.XHat.pos() - buffers.stamped_pos.back().second;
+    const Vector3F undelayed_vel = buffers.stamped_vel.empty() && gains.gps_lag > 0. ? vel : vel + state.XHat.vel() - buffers.stamped_vel.back().second;
 
 
     //compute correction terms 
@@ -303,7 +337,7 @@ void AP_CINS::update_states_gps(const Vector3F &pos_tru, const Vector3F &vel_tru
     const ftype norm_maucross_mauhat = maucross_mauhat.length();    
     if (fabsF(norm_maucross_mauhat) > 0.00001f){
         ftype psi = atan2F(norm_maucross_mauhat, mautrans_mauhat);
-        R_delta = Matrix3F::from_angular_velocity(maucross_mauhat * ((-CINS_GAIN_GPSPOS_ATT*psi*gps_dt )/norm_maucross_mauhat));
+        R_delta = Matrix3F::from_angular_velocity(maucross_mauhat * ((-gains.gpspos_att*psi*gps_dt )/norm_maucross_mauhat));
     } else {
         R_delta.identity();
     }
@@ -348,27 +382,27 @@ void AP_CINS::update_states_gps_cts(const Vector3F &pos_tru, const Vector3F &vel
 
     Matrix3F eye3;
     eye3.identity();
-    const GL2 S_Gamma = -0.5 * (CINS_GAIN_GPSPOS_POS+CINS_GAIN_GPSPOS_ATT) * ZInv.A() * CCT_pos * ZInv.A().transposed() 
-                        -0.5 * (CINS_GAIN_GPSVEL_VEL+CINS_GAIN_GPSVEL_ATT) * ZInv.A() * CCT_vel * ZInv.A().transposed();
-    const Vector3F W_Gamma_1 = - (pos_tru + pos_ZInv) * gains_AC_pos.x * (CINS_GAIN_GPSPOS_POS+CINS_GAIN_GPSPOS_ATT)
-                               - (vel_tru + vel_ZInv) * gains_AC_vel.x * (CINS_GAIN_GPSVEL_VEL+CINS_GAIN_GPSVEL_ATT);
-    const Vector3F W_Gamma_2 = - (pos_tru + pos_ZInv) * gains_AC_pos.y * (CINS_GAIN_GPSPOS_POS+CINS_GAIN_GPSPOS_ATT)
-                               - (vel_tru + vel_ZInv) * gains_AC_vel.y * (CINS_GAIN_GPSVEL_VEL+CINS_GAIN_GPSVEL_ATT);
+    const GL2 S_Gamma = -0.5 * (CINS_GAIN_GPSPOS_POS+gains.gpspos_att) * ZInv.A() * CCT_pos * ZInv.A().transposed() 
+                        -0.5 * (CINS_GAIN_GPSVEL_VEL+gains.gpsvel_att) * ZInv.A() * CCT_vel * ZInv.A().transposed();
+    const Vector3F W_Gamma_1 = - (pos_tru + pos_ZInv) * gains_AC_pos.x * (CINS_GAIN_GPSPOS_POS+gains.gpspos_att)
+                               - (vel_tru + vel_ZInv) * gains_AC_vel.x * (CINS_GAIN_GPSVEL_VEL+gains.gpsvel_att);
+    const Vector3F W_Gamma_2 = - (pos_tru + pos_ZInv) * gains_AC_pos.y * (CINS_GAIN_GPSPOS_POS+gains.gpspos_att)
+                               - (vel_tru + vel_ZInv) * gains_AC_vel.y * (CINS_GAIN_GPSVEL_VEL+gains.gpsvel_att);
 
     const SIM23 Gamma_inv = SIM23(eye3, -W_Gamma_1*gps_dt, -W_Gamma_2*gps_dt, GL2::identity() - gps_dt*S_Gamma);
 
     // const SIM23 Gamma_inv = SIM23(eye3, -W_Gamma_1*gps_dt, -W_Gamma_2*gps_dt, GL2::exponential(- gps_dt*S_Gamma));
 
     // State Estimate Correction
-    // Vector3F Omega_Delta = (Matrix3F::skew_symmetric(pos_est + pos_ZInv) * (pos_tru + pos_ZInv)) * 4.*CINS_GAIN_GPSPOS_ATT
-                        //  + (Matrix3F::skew_symmetric(vel_est + vel_ZInv) * (vel_tru + vel_ZInv)) * 4.*CINS_GAIN_GPSVEL_ATT;
-    Vector3F Omega_Delta = computeRotationCorrection((pos_est + pos_ZInv), -(pos_tru + pos_ZInv), 4.*CINS_GAIN_GPSPOS_ATT, gps_dt)
-                         + computeRotationCorrection((vel_est + vel_ZInv), -(vel_tru + vel_ZInv), 4.*CINS_GAIN_GPSVEL_ATT, gps_dt);
+    // Vector3F Omega_Delta = (Matrix3F::skew_symmetric(pos_est + pos_ZInv) * (pos_tru + pos_ZInv)) * 4.*gains.gpspos_att
+                        //  + (Matrix3F::skew_symmetric(vel_est + vel_ZInv) * (vel_tru + vel_ZInv)) * 4.*gains.gpsvel_att;
+    Vector3F Omega_Delta = computeRotationCorrection((pos_est + pos_ZInv), -(pos_tru + pos_ZInv), 4.*gains.gpspos_att, gps_dt)
+                         + computeRotationCorrection((vel_est + vel_ZInv), -(vel_tru + vel_ZInv), 4.*gains.gpsvel_att, gps_dt);
 
-    Vector3F W_Delta1 = (pos_tru - pos_est) * gains_AC_pos.x * (CINS_GAIN_GPSPOS_POS+CINS_GAIN_GPSPOS_ATT)
-                      + (vel_tru - vel_est) * gains_AC_pos.x * (CINS_GAIN_GPSVEL_VEL+CINS_GAIN_GPSVEL_ATT);
-    Vector3F W_Delta2 = (pos_tru - pos_est) * gains_AC_pos.y * (CINS_GAIN_GPSPOS_POS+CINS_GAIN_GPSPOS_ATT)
-                      + (vel_tru - vel_est) * gains_AC_pos.y * (CINS_GAIN_GPSVEL_VEL+CINS_GAIN_GPSVEL_ATT);
+    Vector3F W_Delta1 = (pos_tru - pos_est) * gains_AC_pos.x * (CINS_GAIN_GPSPOS_POS+gains.gpspos_att)
+                      + (vel_tru - vel_est) * gains_AC_pos.x * (CINS_GAIN_GPSVEL_VEL+gains.gpsvel_att);
+    Vector3F W_Delta2 = (pos_tru - pos_est) * gains_AC_pos.y * (CINS_GAIN_GPSPOS_POS+gains.gpspos_att)
+                      + (vel_tru - vel_est) * gains_AC_pos.y * (CINS_GAIN_GPSVEL_VEL+gains.gpsvel_att);
 
     // Add the bias correction
     const Vector3F bias_correction = compute_bias_update_gps(Gamma_inv.inverse(), pos_tru, vel_tru, gps_dt);
@@ -539,9 +573,9 @@ Vector3F AP_CINS::compute_bias_update_gps(const SIM23& Gamma, const Vector3F& po
     const Matrix3F C12 = pre_C11 * AdZ_12 + pre_C12 * AdZ_22 + pre_C13 * AdZ_32;
     const Matrix3F C13 = pre_C11 * AdZ_13 + pre_C12 * AdZ_23 + pre_C13 * AdZ_33;
 
-    const Matrix3F K11 = Matrix3F::skew_symmetric(state.XHat.pos() + ZInv.W2()) * 4. * CINS_GAIN_GPSPOS_ATT * dt;
-    const Matrix3F K21 = I3 * ZInv.A().a12() * (CINS_GAIN_GPSPOS_POS+CINS_GAIN_GPSPOS_ATT) * dt;
-    const Matrix3F K31 = I3 * ZInv.A().a22() * (CINS_GAIN_GPSPOS_POS+CINS_GAIN_GPSPOS_ATT) * dt;
+    const Matrix3F K11 = Matrix3F::skew_symmetric(state.XHat.pos() + ZInv.W2()) * 4. * gains.gpspos_att * dt;
+    const Matrix3F K21 = I3 * ZInv.A().a12() * (CINS_GAIN_GPSPOS_POS+gains.gpspos_att) * dt;
+    const Matrix3F K31 = I3 * ZInv.A().a22() * (CINS_GAIN_GPSPOS_POS+gains.gpspos_att) * dt;
 
     // Velocity measurement matrix C2x
     const Matrix3F pre_C21 = - Matrix3F::skew_symmetric(state.XHat.vel());
@@ -552,9 +586,9 @@ Vector3F AP_CINS::compute_bias_update_gps(const SIM23& Gamma, const Vector3F& po
     const Matrix3F C22 = pre_C21 * AdZ_12 + pre_C22 * AdZ_22 + pre_C23 * AdZ_32;
     const Matrix3F C23 = pre_C21 * AdZ_13 + pre_C22 * AdZ_23 + pre_C23 * AdZ_33;
 
-    const Matrix3F K12 = Matrix3F::skew_symmetric(state.XHat.vel() + ZInv.W1()) * 4. * CINS_GAIN_GPSVEL_ATT * dt;
-    const Matrix3F K22 = I3 * ZInv.A().a11() * (CINS_GAIN_GPSVEL_VEL+CINS_GAIN_GPSVEL_ATT) * dt;
-    const Matrix3F K32 = I3 * ZInv.A().a21() * (CINS_GAIN_GPSVEL_VEL+CINS_GAIN_GPSVEL_ATT) * dt;
+    const Matrix3F K12 = Matrix3F::skew_symmetric(state.XHat.vel() + ZInv.W1()) * 4. * gains.gpsvel_att * dt;
+    const Matrix3F K22 = I3 * ZInv.A().a11() * (CINS_GAIN_GPSVEL_VEL+gains.gpsvel_att) * dt;
+    const Matrix3F K32 = I3 * ZInv.A().a21() * (CINS_GAIN_GPSVEL_VEL+gains.gpsvel_att) * dt;
 
     // Compute the bias correction using the C matrices.
     // The correction to bias is given by the formula delta_b = k_b (MC)^\top (y-\hat{y})

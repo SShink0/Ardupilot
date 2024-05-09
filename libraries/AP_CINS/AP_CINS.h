@@ -12,8 +12,15 @@
 
 class AP_CINS {
 public:
+    AP_CINS();
     void init(void);
     void update();
+
+    struct {
+        AP_Float gpspos_att;
+        AP_Float gpsvel_att;
+        AP_Float gps_lag;
+    } gains;
 
     Vector3f get_accel() const {
         return state.accel.tofloat();
@@ -42,6 +49,8 @@ public:
         loc = state.origin;
         return state.have_origin;
     }
+
+    static const struct AP_Param::GroupInfo var_info[];
 
 private:
     void update_imu(const Vector3F &gyro_rads, const Vector3F &accel_mss, const ftype dt);
