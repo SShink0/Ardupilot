@@ -27,6 +27,10 @@
 #include <AP_Common/Location.h>
 #include <AP_NavEKF/AP_Nav_Common.h>
 
+#if AP_EXTERNAL_AHRS_CINS_ENABLED
+class AP_CINS;
+#endif
+
 class AP_ExternalAHRS_backend;
 
 class AP_ExternalAHRS {
@@ -203,6 +207,10 @@ private:
 
     // true when user has disabled the GNSS
     bool gnss_is_disabled;
+
+#if AP_EXTERNAL_AHRS_CINS_ENABLED
+    AP_CINS *cins_ptr;
+#endif
 };
 
 namespace AP {

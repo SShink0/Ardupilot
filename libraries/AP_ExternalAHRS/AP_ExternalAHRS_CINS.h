@@ -28,7 +28,7 @@
 class AP_ExternalAHRS_CINS : public AP_ExternalAHRS_backend {
 
 public:
-    AP_ExternalAHRS_CINS(AP_ExternalAHRS *frontend, AP_ExternalAHRS::state_t &state);
+    AP_ExternalAHRS_CINS(AP_ExternalAHRS *frontend, AP_ExternalAHRS::state_t &state, AP_CINS *&cins_ptr);
 
     // accessors for AP_AHRS
     bool healthy(void) const override {

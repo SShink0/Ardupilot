@@ -90,6 +90,13 @@ const AP_Param::GroupInfo AP_ExternalAHRS::var_info[] = {
     // @Units: Hz
     // @User: Standard
     AP_GROUPINFO("_LOG_RATE", 5, AP_ExternalAHRS, log_rate, 10),
+
+#if AP_EXTERNAL_AHRS_CINS_ENABLED
+    // @Group: _CINS_
+    // @Path: ../AP_CINS/AP_CINS.cpp
+    AP_SUBGROUPPTR(cins_ptr, "_CINS_", 6, AP_ExternalAHRS, AP_CINS),
+#endif
+    
     
     AP_GROUPEND
 };
@@ -133,7 +140,7 @@ void AP_ExternalAHRS::init(void)
 
 #if AP_EXTERNAL_AHRS_CINS_ENABLED
     case DevType::CINS:
-        backend = new AP_ExternalAHRS_CINS(this, state);
+        backend = new AP_ExternalAHRS_CINS(this, state, cins_ptr);
         return;
 #endif
 

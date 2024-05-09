@@ -24,9 +24,11 @@
 
 // constructor
 AP_ExternalAHRS_CINS::AP_ExternalAHRS_CINS(AP_ExternalAHRS *_frontend,
-                                           AP_ExternalAHRS::state_t &_state) :
+                                           AP_ExternalAHRS::state_t &_state,
+                                           AP_CINS *&cins_ptr) :
     AP_ExternalAHRS_backend(_frontend, _state)
 {
+    cins_ptr = &cins;
     GCS_SEND_TEXT(MAV_SEVERITY_INFO, "CINS Started");
     cins.init();
 }
