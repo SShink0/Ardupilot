@@ -8,6 +8,8 @@
 #include <AP_Math/LieGroups.h>
 #include <AP_Common/Location.h>
 
+#include <deque>
+
 class AP_CINS {
 public:
     void init(void);
@@ -75,7 +77,16 @@ private:
         } bias_gain_mat;
     } state;
 
+    // buffers for storing old position and velocity data with timestamps.
+    // used to compensate for the GNSS pos and vel measurement delay.
+    struct {
+        ftype internal_time = 0.;
+        std::deque<std::pair<ftype,Vector3F>> stamped_pos;
+        std::deque<std::pair<ftype,Vector3F>> stamped_vel;
+    } buffers;
+
     uint32_t last_gps_update_ms;
     bool done_yaw_init;
     uint32_t last_mag_us;
 };
+

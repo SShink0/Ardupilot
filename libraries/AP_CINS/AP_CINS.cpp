@@ -22,8 +22,10 @@
 // Gains for the Bias
 #define CINS_GAIN_POS_BIAS (1E-6)
 #define CINS_GAIN_VEL_BIAS (1E-6)
-#define CINS_GAIN_MAG_BIAS (0.05)
+#define CINS_GAIN_MAG_BIAS (0.005)
 #define CINS_SAT_BIAS (0.0873) // 0.0873 rad/s is 5 deg/s
+// Naive GPS Time Delay settings
+#define CINS_GPS_DELAY (0.1) // seconds of delay
 
 
 Vector3F computeRotationCorrection(const Vector3F& v1, const Vector3F& v2, const ftype& gain, const ftype& dt);
@@ -96,11 +98,27 @@ void AP_CINS::update(void)
             }
             const auto & vel = gps.velocity();
             const Vector3d pos = state.origin.get_distance_NED_double(loc);
+
             update_gps(pos.toftype(), vel.toftype(), gps_dt);
         }
     }
 
     update_attitude_from_compass();
+
+    // Update GNSS delay buffers
+    buffers.internal_time += dangle_dt;
+    buffers.stamped_pos.push_front({buffers.internal_time, state.XHat.pos()});
+    while (!buffers.stamped_pos.empty() && buffers.internal_time - buffers.stamped_pos.back().first > CINS_GPS_DELAY){
+        buffers.stamped_pos.pop_back();
+    }
+    buffers.stamped_vel.push_front({buffers.internal_time, state.XHat.vel()});
+    while (!buffers.stamped_pos.empty() && buffers.internal_time - buffers.stamped_vel.back().first > CINS_GPS_DELAY){
+        buffers.stamped_vel.pop_back();
+    }
+
+
+
+    // Write logging messages
 
     // @LoggerMessage: CINS
     // @Description: CINS state
@@ -173,8 +191,13 @@ void AP_CINS::update(void)
  */
 void AP_CINS::update_gps(const Vector3F &pos, const Vector3F &vel, const ftype gps_dt)
 {
+    // Forward the GPS to the current time
+    const Vector3F undelayed_pos = buffers.stamped_pos.empty() && CINS_GPS_DELAY > 0. ? pos : pos + state.XHat.pos() - buffers.stamped_pos.back().second;
+    const Vector3F undelayed_vel = buffers.stamped_vel.empty() && CINS_GPS_DELAY > 0. ? vel : vel + state.XHat.vel() - buffers.stamped_vel.back().second;
+
+
     //compute correction terms 
-    update_states_gps_cts(pos, vel, gps_dt);
+    update_states_gps_cts(undelayed_pos, undelayed_vel, gps_dt);
     // update_states_gps(pos, vel, gps_dt);
 
     // use AHRS3 for debugging
